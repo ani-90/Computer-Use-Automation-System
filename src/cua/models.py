@@ -14,8 +14,17 @@ class _Strict(BaseModel):
 class LocatorCandidate(_Strict):
     # No css/xpath strategy on purpose: a target is a description, never a raw selector.
     strategy: Literal["role_name", "label", "text", "placeholder"]
-    value: str
+    value: str | None = None  # accessible name / label / text; None for a role-only match
     role: str | None = None  # used with role_name
+    nth: int | None = None  # 0-based pick among several matches; -1 means the last match
+
+    @model_validator(mode="after")
+    def _check_fields(self) -> Self:
+        if self.strategy == "role_name" and self.role is None:
+            raise ValueError("role_name requires a role")
+        if self.strategy != "role_name" and self.value is None:
+            raise ValueError(f"{self.strategy} requires a value")
+        return self
 
 
 class Locator(_Strict):

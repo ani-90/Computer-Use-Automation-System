@@ -74,6 +74,14 @@ def test_condition_requires_its_target_and_value():
     Condition(kind="text_equals", target=_locator(), value="{{from_account}}")
 
 
+def test_locator_candidate_field_rules():
+    with pytest.raises(ValidationError):
+        LocatorCandidate(strategy="role_name", value="Transfer")  # needs a role
+    with pytest.raises(ValidationError):
+        LocatorCandidate(strategy="label")  # needs a value
+    LocatorCandidate(strategy="role_name", role="textbox", nth=0)  # role-only match is fine
+
+
 def test_capability_round_trips_through_json():
     cap = Capability(
         schema_version="1",
