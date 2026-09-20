@@ -28,7 +28,10 @@ Account numbers are deliberately not recorded here; they are demo parameters, ne
   description is a link; the ID is not in the table.
 - The link opens Transaction Details: `Transaction ID`, `Date`, `Description`, `Type`, `Amount`.
 - So a bank-side transaction ID is reachable in about three steps after the transfer. Matching by amount
-  is best-effort if the same amount was transferred more than once. Result ordering is not yet known.
+  is best-effort if the same amount was transferred more than once.
+- Ordering, checked with two identical $5 transfers on the same day: results list oldest-first. The earlier
+  transfer is the top row, so the newest match is the last row. The rows look identical in the table; the
+  ID is only visible after opening a row.
 
 ## Sidebar
 - The sidebar has an `Admin Page` link (ParaBank admin controls, including database initialization).
@@ -37,6 +40,19 @@ Account numbers are deliberately not recorded here; they are demo parameters, ne
 ## ParaBank behaviour confirmed manually
 - No overdraft protection: an account can go negative (account B is evidence of this).
 
+## Adapter findings (Phase 2 smoke test)
+- Login: the Username and Password inputs have no accessible name. The label is a plain paragraph just
+  before each input. The adapter locates them by role plus position (nth) and shows the label as a hint.
+- Repeated names: header and footer links repeat, and the Find Transactions page has four buttons all named
+  `Find Transactions`. These need `nth` to resolve.
+- After login, `Transfer Funds` in the sidebar is a single link. It appears twice on the home page.
+- Account numbers are 5 digits. Screenshot masking boxes only the number (checked on Accounts Overview).
+- Pages visited so far: index, overview, transfer, findtrans. All are on the allowlist. `transaction.htm`
+  has not been visited by the script yet.
+- Accounts Overview balances are plain table text, not interactive elements, so they are not in the
+  candidate list.
+
 ## Open items
-- Adapter connectivity and locator viability (login field accessible names, fallback chain): Phase 2 smoke test.
+- Locator viability on the transfer and Find Transactions pages (names with special characters, duplicate
+  buttons): to be confirmed by the Phase 2 rerun.
 - Real `error_mapping` content for `BUSINESS_OUTCOME`: Phase 6 probe run.

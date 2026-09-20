@@ -40,7 +40,7 @@ The design docs live outside the repo (the user's Downloads folder): `approach_4
 - Browser runs headed. `session_owner` (`agent` | `human`) gates every action.
 - Outputs are `confirmation_text`, `new_balance` and `transaction_id: str | None`. ParaBank's confirmation
   screen shows no transaction ID; it is read afterwards from Find Transactions (search by amount, open the
-  top row) on the Transaction Details page. The match is best-effort (amount, description, date, newest),
+  last row: results list oldest-first) on the Transaction Details page. The match is best-effort (amount, description, date, newest),
   not a guarantee. This is a read-only step after `new_balance`. Populated in Phase 5, declared in the schema.
 - Every run has a system-generated `run_id` (UUID) in logs, `/evidence/`, `ReplayResult` and escalation
   tickets. It is our own correlation ID, not the bank's, and lives beside `outputs`, not inside it.
