@@ -37,5 +37,5 @@ class Config(BaseModel):
         default_factory=lambda: {"account_number": r"\b\d{5,12}\b"}
     )
     sensitive_keys: list[str] = Field(
-        default_factory=lambda: ["password", "api_key", "secret", "token", "authorization"]
+        default_factory=lambda: ["password", "api_key", "secret", "access_token", "auth_token", "authorization"]
     )
