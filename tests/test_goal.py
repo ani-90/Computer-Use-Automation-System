@@ -94,6 +94,19 @@ def test_check_done_reports_what_is_missing():
     assert "Transfer Complete" not in problems[0]  # the required phrases are never quoted back
 
 
+def test_confirmation_may_be_recorded_in_parts():
+    spec = load()
+    assert spec.extracts["confirmation_text"].combine is True
+    assert not any(x.combine for n, x in spec.extracts.items() if n != "confirmation_text")
+    heading = "Transfer Complete!"
+    paragraph = "$5.00 has been transferred from account acct-a to account acct-b."
+    base = {"new_balance": "$5.00"}
+    assert spec.check_done({**base, "confirmation_text": heading}, PARAMS)  # no accounts
+    assert spec.check_done({**base, "confirmation_text": paragraph}, PARAMS)  # no phrase
+    joined = {**base, "confirmation_text": f"{heading}\n{paragraph}"}
+    assert spec.check_done(joined, PARAMS) == []
+
+
 def test_gate_wiring_must_point_at_the_right_things():
     with pytest.raises(ValidationError):
         GoalSpec.model_validate(raw() | {"amount_input": "from_account"})  # not a decimal input

@@ -90,10 +90,11 @@ class FakeSite:
                 ("link", "Accounts Overview", None, {"href": "http://h/parabank/overview.htm"}),
             ]
             texts = [("heading", "Transfer Funds", None)]
-            if self.transferred:
-                done = f"Transfer Complete! ${self.fields['Amount']}.00 has been transferred "
-                done += "from account acct-a to account acct-b."
-                texts.append(("paragraph", done, "confirmation"))
+            if self.transferred:  # like the live app: the message is split over two elements
+                texts.append(("heading", "Transfer Complete!", "confirmation heading"))
+                paragraph = f"${self.fields['Amount']}.00 has been transferred "
+                paragraph += "from account acct-a to account acct-b."
+                texts.append(("paragraph", paragraph, "confirmation"))
             return cands, texts
         return [], []
 
@@ -222,6 +223,7 @@ def submit() -> list:
 def finish() -> list:
     return [
         lambda s: call("extract", ref=ref(s, "Transfer Complete"), name="confirmation_text"),
+        lambda s: call("extract", ref=ref(s, "has been transferred"), name="confirmation_text"),
         lambda s: call("click", ref=ref(s, "Accounts Overview", True), expect="Accounts Overview"),
         lambda s: call("extract", ref=ref(s, bal(s)), name="new_balance"),
         lambda s: call("report_done", reasoning="all recorded"),
@@ -267,10 +269,10 @@ def test_full_success_path(tmp_path):
     assert result.outputs["new_balance"] == "$95.00"
     assert "Transfer Complete" in result.outputs["confirmation_text"]
     counted = [s for s in result.steps if s.counted]
-    assert result.llm_calls == len(llm.calls) == 13 and len(counted) == 12
+    assert result.llm_calls == len(llm.calls) == 14 and len(counted) == 13
     assert all(s.result == "ok" for s in result.steps)
     assert all(s.checkpoint_status == "verified" for s in counted)
-    assert (result.input_tokens, result.output_tokens) == (130, 65)
+    assert (result.input_tokens, result.output_tokens) == (140, 70)
     assert site.transfer_clicks == 1
 
 
@@ -426,6 +428,38 @@ def test_report_done_is_rejected_until_every_output_is_recorded(tmp_path):
     assert "confirmation_text was not captured" in rejected.error
     assert "Not done yet" in last_user_text(llm, 7)  # what the model sees right after its early claim
     assert "Transfer Complete" not in rejected.error  # the required phrases are never quoted back
+
+
+def test_a_confirmation_split_over_two_elements_is_combined_not_duplicated(tmp_path):
+    heading = lambda s: call("extract", ref=ref(s, "Transfer Complete"), name="confirmation_text")
+    paragraph = lambda s: call(
+        "extract", ref=ref(s, "has been transferred"), name="confirmation_text"
+    )
+    script = read_balance() + open_transfer() + fill() + submit() + [
+        heading,
+        heading,  # a repeat adds nothing
+        lambda s: call("report_done", reasoning="early"),
+        paragraph,
+        lambda s: call("click", ref=ref(s, "Accounts Overview", True), expect="Accounts Overview"),
+        lambda s: call("extract", ref=ref(s, bal(s)), name="new_balance"),
+        lambda s: call("report_done", reasoning="all recorded"),
+    ]
+    result, *_ = run(tmp_path, script, site=FakeSite(path=OVERVIEW))
+    early = next(s for s in result.steps if s.tool == "report_done" and s.result == "error")
+    assert "confirmation_text does not confirm the goal was met" in early.error
+    assert result.stop_reason == StopReason.SUCCESS
+    text = result.outputs["confirmation_text"]
+    assert text.count("Transfer Complete!") == 1 and "has been transferred" in text
+
+
+def test_typing_and_selecting_get_no_expectation_feedback(tmp_path):
+    script = [
+        lambda s: call("type", ref=ref(s, "Username"), text="svc-user", expect="zzz not on page"),
+        call("report_stuck", reasoning="stop"),
+    ]
+    result, _, llm, _ = run(tmp_path, script)
+    assert result.steps[0].expectation is None and result.steps[0].checkpoint_status == "verified"
+    assert "you expected" not in last_user_text(llm, 1)
 
 
 def test_bad_and_parallel_tool_calls_get_error_results(tmp_path):

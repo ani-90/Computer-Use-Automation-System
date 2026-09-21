@@ -29,6 +29,7 @@ class ExtractSpec(BaseModel):
     description: str  # what this value is; the agent sees it (placeholders allowed)
     purpose: Literal["output", "policy"] = "output"  # policy: read only to feed the gate
     required: bool = True
+    combine: bool = False  # later reads under this name are joined: a value split over elements
 
     @model_validator(mode="after")
     def _known_shape(self) -> Self:

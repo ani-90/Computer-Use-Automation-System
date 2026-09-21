@@ -19,7 +19,8 @@
     },
     "confirmation_text": {
       "shape": "nonempty",
-      "description": "The confirmation message shown after the transfer."
+      "combine": true,
+      "description": "The confirmation message shown after the transfer. If the message is split across several elements, record each part under this name."
     },
     "new_balance": {
       "shape": "money",

@@ -291,12 +291,20 @@ class DiscoveryRun:
             shape=self.spec.extracts[action.name].shape if is_extract else None,
         )
         derived = derive_checkpoint(ctx, before, after)
+        # Typing and selecting change no visible text, so only their field checkpoint counts;
+        # an expectation is judged (and refutations fed back) for clicks and navigation only.
+        judged = action.tool in {"click", "navigate"} and bool(action.expect)
         self.guard.after(action, before.url, after.url, derived.status != "failed", provenance, param)
         if is_extract:
             fields["value"] = extracted
             if derived.status == "verified":
                 text = (extracted or "").strip()
-                self.captured[action.name] = text
+                earlier = self.captured.get(action.name)
+                if self.spec.extracts[action.name].combine and earlier:
+                    if text not in earlier:  # parts of one value are joined, repeats are not
+                        self.captured[action.name] = f"{earlier}\n{text}"
+                else:
+                    self.captured[action.name] = text
                 if action.name == self.spec.balance_extract:
                     self.guard.set_balance(text)
 
@@ -305,7 +313,7 @@ class DiscoveryRun:
         step = self._record(
             **fields,
             gate=gate,
-            expectation=derived.expectation if action.expect else None,
+            expectation=derived.expectation if judged else None,
             checkpoint_status=derived.status,
             checkpoint=derived.conditions,
             result="ok",
@@ -317,7 +325,7 @@ class DiscoveryRun:
             notes.append(f"The action did not take effect: {derived.note}.")
         elif derived.status == "unverified":
             notes.append("Nothing observable changed.")
-        if action.expect and derived.expectation == "refuted":
+        if judged and derived.expectation == "refuted":
             notes.append(refutation_message(action.expect, after))
         feedback = "\n".join(["Result: ok", *notes])
         self._answer(
