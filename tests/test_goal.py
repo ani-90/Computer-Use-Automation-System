@@ -92,3 +92,18 @@ def test_check_done_reports_what_is_missing():
     problems = spec.check_done(vague, PARAMS)
     assert problems == ["confirmation_text does not confirm the goal was met"]
     assert "Transfer Complete" not in problems[0]  # the required phrases are never quoted back
+
+
+def test_gate_wiring_must_point_at_the_right_things():
+    with pytest.raises(ValidationError):
+        GoalSpec.model_validate(raw() | {"amount_input": "from_account"})  # not a decimal input
+    with pytest.raises(ValidationError):
+        GoalSpec.model_validate(raw() | {"balance_extract": "new_balance"})  # not a policy read
+    with pytest.raises(ValidationError):
+        GoalSpec.model_validate(raw() | {"amount_input": "nope"})
+
+
+def test_extract_descriptions_are_filled_from_the_parameters():
+    described = load().extract_descriptions(PARAMS)
+    assert "acct-a" in described["source_balance_before"]
+    assert set(described) == set(load().extracts)

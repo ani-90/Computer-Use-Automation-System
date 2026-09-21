@@ -9,11 +9,27 @@
     "to_account": {"type": "string"},
     "amount": {"type": "decimal"}
   },
+  "amount_input": "amount",
+  "balance_extract": "source_balance_before",
   "extracts": {
-    "source_balance_before": {"shape": "money", "purpose": "policy"},
-    "confirmation_text": {"shape": "nonempty"},
-    "new_balance": {"shape": "money"},
-    "transaction_id": {"shape": "nonempty", "required": false}
+    "source_balance_before": {
+      "shape": "money",
+      "purpose": "policy",
+      "description": "The balance of account {from_account} before the transfer."
+    },
+    "confirmation_text": {
+      "shape": "nonempty",
+      "description": "The confirmation message shown after the transfer."
+    },
+    "new_balance": {
+      "shape": "money",
+      "description": "The balance of account {from_account} after the transfer."
+    },
+    "transaction_id": {
+      "shape": "nonempty",
+      "required": false,
+      "description": "The transaction ID of the transfer just made."
+    }
   },
   "done_requires": {
     "confirmation_text": ["Transfer Complete", "{from_account}", "{to_account}"]

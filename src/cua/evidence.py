@@ -24,12 +24,26 @@ class EvidenceLogger:
     def log(self, event: str, **data: Any) -> None:
         # Redact only `data`: run_id must stay intact so it still matches the folder and result.
         # default=str covers Decimal, enums and datetimes before the redactor scans them.
-        safe_data = self._redactor.redact(json.loads(json.dumps(data, default=str)))
         record = {
             "ts": datetime.now(UTC).isoformat(),
             "run_id": self.run_id,
             "event": event,
-            "data": safe_data,
+            "data": self._clean(data),
         }
         with self.path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(record) + "\n")
+
+    def write_json(self, name: str, data: Any) -> None:
+        (self.dir / name).write_text(json.dumps(self._clean(data), indent=2), encoding="utf-8")
+
+    def append_jsonl(self, name: str, data: Any) -> None:
+        with (self.dir / name).open("a", encoding="utf-8") as f:
+            f.write(json.dumps(self._clean(data)) + "\n")
+
+    def write_bytes(self, name: str, data: bytes) -> None:
+        """Only for images that are already masked: bytes are written as they are."""
+        (self.dir / name).write_bytes(data)
+
+    def _clean(self, data: Any) -> Any:
+        # default=str covers Decimal, enums and datetimes before the redactor scans them.
+        return self._redactor.redact(json.loads(json.dumps(data, default=str)))

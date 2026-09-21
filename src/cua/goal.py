@@ -26,6 +26,7 @@ class ExtractSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     shape: str
+    description: str  # what this value is; the agent sees it (placeholders allowed)
     purpose: Literal["output", "policy"] = "output"  # policy: read only to feed the gate
     required: bool = True
 
@@ -46,6 +47,8 @@ class GoalSpec(BaseModel):
     goal_template: str  # the only part the agent ever sees
     inputs: dict[str, ParamSpec]
     extracts: dict[str, ExtractSpec]
+    amount_input: str  # the input the Policy Gate treats as the amount
+    balance_extract: str  # the policy read that supplies the balance to the gate
     done_requires: dict[str, list[str]] = Field(default_factory=dict)
 
     @model_validator(mode="after")
@@ -59,10 +62,21 @@ class GoalSpec(BaseModel):
                 raise ValueError(f"done_requires names {name!r}, which is not a declared output")
             if any(not _placeholders(p) <= inputs for p in phrases):
                 raise ValueError("done_requires uses a placeholder that is not a declared input")
+        amount = self.inputs.get(self.amount_input)
+        if amount is None or amount.type != "decimal":
+            raise ValueError("amount_input must name a decimal input")
+        balance = self.extracts.get(self.balance_extract)
+        if balance is None or balance.purpose != "policy":
+            raise ValueError("balance_extract must name a policy extract")
+        if any(not _placeholders(x.description) <= inputs for x in self.extracts.values()):
+            raise ValueError("an extract description uses a placeholder that is not an input")
         return self
 
     def goal_text(self, params: Mapping[str, str]) -> str:
         return self.goal_template.format_map(params)
+
+    def extract_descriptions(self, params: Mapping[str, str]) -> dict[str, str]:
+        return {n: x.description.format_map(params) for n, x in self.extracts.items()}
 
     def start_url(self, env: Mapping[str, str]) -> str:
         return env[self.base_url_env].rstrip("/") + "/" + self.start_page

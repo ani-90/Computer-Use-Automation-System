@@ -34,6 +34,10 @@ class LocatorNotFound(Exception):
     """No candidate in a locator's fallback chain resolved to exactly one element."""
 
 
+class ActionFailed(Exception):
+    """The browser could not perform an action (not actionable, navigation failed, timeout)."""
+
+
 @dataclass(frozen=True)
 class BoundingBox:
     x: float
@@ -265,20 +269,26 @@ class PlaywrightAdapter:
     def act(self, element: ResolvedElement, action: Action) -> str | None:
         # Typed values are never logged: the password passes through here.
         self._log("act", kind=action.kind, description=element.description)
-        match action.kind:
-            case "click":
-                element.handle.click()
-            case "type":
-                element.handle.fill(action.value or "")
-            case "select":
-                element.handle.select_option(action.value or "")
-            case "extract":
-                return element.handle.inner_text()
+        try:
+            match action.kind:
+                case "click":
+                    element.handle.click()
+                case "type":
+                    element.handle.fill(action.value or "")
+                case "select":
+                    element.handle.select_option(action.value or "")
+                case "extract":
+                    return element.handle.inner_text()
+        except PlaywrightError as e:
+            raise ActionFailed(str(e).splitlines()[0]) from e
         return None
 
     def navigate(self, target: str) -> None:
         page = self._require_page()
-        page.goto(target)
+        try:
+            page.goto(target)
+        except PlaywrightError as e:
+            raise ActionFailed(str(e).splitlines()[0]) from e
         page.wait_for_load_state("networkidle")
 
     def _addressable(self, page: Page, node: TextNode) -> TextNode:
