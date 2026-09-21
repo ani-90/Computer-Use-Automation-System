@@ -3,8 +3,10 @@
 import re
 import time
 from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal, Self
+from urllib.parse import urljoin
 
 from playwright.sync_api import Browser, Page, Playwright, Request, sync_playwright
 from playwright.sync_api import Error as PlaywrightError
@@ -20,6 +22,10 @@ INTERACTIVE_ROLES = {
 _FIELD_ROLES = {"textbox", "combobox", "checkbox", "radio", "searchbox", "spinbutton"}
 _SNAPSHOT_ROW = re.compile(r'''^\s*- '?(?P<role>[a-z]+)(?: "(?P<name>(?:[^"\\]|\\.)*)")?''')
 _TEXT_ROW = re.compile(r"^\s*- (?:paragraph|text): (?P<text>.+)$")
+_VALUE_TAIL = re.compile(r"""'?(?:\s*\[[^\]]*\])*:\s*(?P<value>.+)$""")
+_OPTION_ROW = re.compile(r'''^\s*- option "(?P<name>(?:[^"\\]|\\.)*)"(?P<flags>(?: \[[^\]]*\])*)''')
+_URL_ROW = re.compile(r"^\s*- /url: (?P<url>\S+)")
+_TEXT_INPUTS = {"textbox", "searchbox", "spinbutton"}
 _SETTLE_POLL_MS = 300
 _SETTLE_TIMEOUT_S = 5.0
 
@@ -44,6 +50,11 @@ class Candidate:
     hint: str | None  # nearby label text for unnamed elements
     box: BoundingBox | None
     locator: Locator  # what the compiler later saves; discovery resolves this
+    value: str | None = None  # current text; None when empty or when it matches a secret
+    filled: bool = False  # the field holds something (true even for a masked secret)
+    options: tuple[str, ...] = ()  # dropdown options
+    selected: str | None = None  # the selected dropdown option
+    href: str | None = None  # absolute link target
 
 
 @dataclass(frozen=True)
@@ -68,11 +79,16 @@ class Action:
 
 class PlaywrightAdapter:
     def __init__(
-        self, config: Config, logger: EvidenceLogger | None = None, timeout_ms: int = 10_000
+        self,
+        config: Config,
+        logger: EvidenceLogger | None = None,
+        timeout_ms: int = 10_000,
+        secrets: Sequence[str] = (),
     ):
         self._config = config
         self._logger = logger
         self._timeout = timeout_ms
+        self._secrets = {s for s in secrets if s}  # values that must never enter a candidate
         self._pw: Playwright | None = None
         self._browser: Browser | None = None
         self._page: Page | None = None
@@ -127,8 +143,14 @@ class PlaywrightAdapter:
                 locator = self._describe_unnamed(role, hint, role_nth)
             else:
                 continue  # unnamed link or button: nothing to identify it by
+            value, filled = self._value(lines, i, role)
+            options, selected = self._options(lines, i) if role == "combobox" else ((), None)
+            href = self._href(lines, i, page.url) if role == "link" else None
             candidates.append(
-                Candidate(len(candidates) + 1, role, name, hint, self._box(handle), locator)
+                Candidate(
+                    len(candidates) + 1, role, name, hint, self._box(handle), locator,
+                    value, filled, options, selected, href,
+                )
             )
         return Observation(page.url, page.screenshot(), self._masked_screenshot(page), candidates)
 
@@ -222,12 +244,42 @@ class PlaywrightAdapter:
     @staticmethod
     def _hint(lines: list[str], i: int) -> str | None:
         m = _TEXT_ROW.match(lines[i - 1]) if i > 0 else None
-        if not m:
-            return None
-        text = m["text"].strip()
-        if len(text) >= 2 and text[0] == text[-1] == '"':  # the snapshot quotes text with a colon
-            text = text[1:-1].replace('\\"', '"')
-        return text
+        return PlaywrightAdapter._yaml_text(m["text"]) if m else None
+
+    @staticmethod
+    def _yaml_text(raw: str) -> str:
+        raw = raw.strip()
+        if len(raw) >= 2 and raw[0] == raw[-1] == '"':  # the snapshot quotes text with a colon
+            return raw[1:-1].replace('\\"', '"')
+        return raw
+
+    def _value(self, lines: list[str], i: int, role: str) -> tuple[str | None, bool]:
+        m = _SNAPSHOT_ROW.match(lines[i])
+        tail = _VALUE_TAIL.match(lines[i][m.end() :]) if m and role in _TEXT_INPUTS else None
+        text = self._yaml_text(tail["value"]) if tail else ""
+        if not text:
+            return None, False
+        return (None if text in self._secrets else text), True
+
+    @staticmethod
+    def _options(lines: list[str], i: int) -> tuple[tuple[str, ...], str | None]:
+        indent = len(lines[i]) - len(lines[i].lstrip())
+        names: list[str] = []
+        selected = None
+        for line in lines[i + 1 :]:
+            if len(line) - len(line.lstrip()) <= indent:
+                break
+            if m := _OPTION_ROW.match(line):
+                name = m["name"].replace('\\"', '"')
+                names.append(name)
+                if "selected" in m["flags"]:
+                    selected = name
+        return tuple(names), selected
+
+    @staticmethod
+    def _href(lines: list[str], i: int, base: str) -> str | None:
+        m = _URL_ROW.match(lines[i + 1]) if i + 1 < len(lines) else None
+        return urljoin(base, m["url"]) if m else None
 
     @staticmethod
     def _describe_unnamed(role: str, hint: str | None, nth: int) -> Locator:
