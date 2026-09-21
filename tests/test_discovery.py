@@ -461,20 +461,28 @@ def test_a_blocked_result_keeps_its_screenshot_as_a_separate_block(tmp_path):
     assert "Blocked" in answer[0]["content"][0]["text"]
 
 
-def test_done_is_refused_until_every_input_was_entered_in_a_step(tmp_path):
-    early = [lambda s: call("report_done", reasoning="done")]
-    to_account = [lambda s: call("select", ref=ref(s, "To", True), value="acct-b", expect="x")]
+def test_the_submit_is_blocked_until_every_input_was_entered(tmp_path):
     script = (
         read_balance() + open_transfer()
         + [fill()[0], fill()[2]]  # source and amount only: the destination is left at its default
-        + submit() + finish()[:2] + early + to_account + finish()[2:]
+        + submit()  # blocked: nothing is sent to the site
+        + [fill()[1]]  # now the destination
+        + submit() + finish()
     )
-    result, _, llm, _ = run(tmp_path, script, site=FakeSite(path=OVERVIEW))
-    rejected = next(s for s in result.steps if s.tool == "report_done" and s.result == "error")
-    assert "the value for to_account was never entered" in rejected.error
-    assert result.stop_reason == StopReason.SUCCESS
-    for sent in llm.calls:
-        assert_api_rules(sent["messages"])
+    result, site, llm, _ = run(tmp_path, script, site=FakeSite(path=OVERVIEW))
+    blocked = next(s for s in result.steps if s.result == "blocked")
+    assert blocked.tool == "click"
+    assert "the value for to_account was never entered" in blocked.error
+    assert result.stop_reason == StopReason.SUCCESS and site.transfer_clicks == 1
+    steps = result.steps
+    chosen = next(i for i, s in enumerate(steps) if s.param == "to_account")
+    sent = max(
+        i for i, s in enumerate(steps)
+        if s.tool == "click" and s.result == "ok" and s.target.description == "Transfer"
+    )
+    assert chosen < sent  # the destination was chosen before the transfer that moved the money
+    for call_sent in llm.calls:
+        assert_api_rules(call_sent["messages"])
 
 
 def test_the_model_receives_the_config_derived_descriptions_and_goal(tmp_path):

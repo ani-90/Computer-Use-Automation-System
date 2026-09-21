@@ -90,6 +90,58 @@ def test_a_submitted_button_cannot_be_pressed_twice():
     assert again.verdict == Verdict.BLOCK and "already submitted" in again.reason
 
 
+def select_action(name: str) -> AgentAction:
+    return AgentAction("select", ref=3, text="x", element=element("combobox", name))
+
+
+def enter(g: ActionGuard, name: str, tool_action: AgentAction, url: str = TRANSFER) -> None:
+    g.after(tool_action, url, url, True, "parameter", name)
+
+
+def test_the_first_submit_needs_every_input_entered_on_the_page():
+    gate = PolicyGate(Config(approval_threshold=Decimal(100)))
+    g = ActionGuard(gate, {"amount": "5"}, "amount", ("from_account", "to_account", "amount"))
+    g.set_balance("$100.00")
+    enter(g, "amount", type_amount())
+    enter(g, "from_account", select_action("From"))
+    submit = click("button", "Transfer")
+    blocked = g.check(submit, TRANSFER, "other", None)
+    assert blocked.verdict == Verdict.BLOCK and "to_account was never entered" in blocked.reason
+    enter(g, "to_account", select_action("To"))
+    assert g.check(submit, TRANSFER, "other", None).verdict == Verdict.ALLOW
+
+
+def test_entries_are_forgotten_when_the_page_changes():
+    gate = PolicyGate(Config(approval_threshold=Decimal(100)))
+    g = ActionGuard(gate, {"amount": "5"}, "amount", ("from_account", "amount"))
+    g.set_balance("$100.00")
+    enter(g, "from_account", select_action("From"))
+    enter(g, "amount", type_amount())
+    g.after(click("link", "Home"), TRANSFER, OVERVIEW, True, "other", None)
+    assert g.entered == set()
+    enter(g, "amount", type_amount(), OVERVIEW)  # only the amount on the new page
+    again = g.check(click("button", "Go"), OVERVIEW, "other", None)
+    assert again.verdict == Verdict.BLOCK and "from_account" in again.reason
+
+
+def test_only_the_first_submit_is_gated_so_a_later_search_page_is_not_blocked():
+    gate = PolicyGate(Config(approval_threshold=Decimal(100)))
+    g = ActionGuard(gate, {"amount": "5"}, "amount", ("from_account", "to_account", "amount"))
+    g.set_balance("$100.00")
+    for name, act in (("amount", type_amount()), ("from_account", select_action("From")),
+                      ("to_account", select_action("To"))):
+        enter(g, name, act)
+    submit = click("button", "Transfer")
+    assert g.check(submit, TRANSFER, "other", None).verdict == Verdict.ALLOW
+    g.after(submit, TRANSFER, TRANSFER, True, "other", None)
+    g.after(click("link", "Find"), TRANSFER, "http://h/parabank/findtrans.htm", True, "other", None)
+    search = "http://h/parabank/findtrans.htm"
+    enter(g, "amount", type_amount(), search)  # a search needs only the amount and an account
+    assert g.check(click("button", "Find Transactions"), search, "other", None).verdict == (
+        Verdict.ALLOW
+    )
+
+
 def test_links_never_count_as_a_submission_and_navigation_disarms():
     g = guard("5")
     g.set_balance("$100.00")

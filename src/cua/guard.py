@@ -1,7 +1,7 @@
 """Action guard: the Policy Gate plus the amount rules and the irreversible-step rule."""
 
 import re
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from decimal import Decimal
 from urllib.parse import urljoin, urlparse
 
@@ -18,12 +18,21 @@ def _decision(verdict: Verdict, reason: str) -> Decision:
 
 
 class ActionGuard:
-    def __init__(self, gate: PolicyGate, params: Mapping[str, str], amount_input: str):
+    def __init__(
+        self,
+        gate: PolicyGate,
+        params: Mapping[str, str],
+        amount_input: str,
+        inputs: Collection[str] = (),
+    ):
         self._gate = gate
         self._amount_input = amount_input
         self._amount = Decimal(params[amount_input])
+        self._inputs = tuple(inputs)  # every one must be entered before the first submit
         self.balance: Decimal | None = None  # set from the goal's balance read
         self.armed = False  # the tagged amount was typed on this page
+        self.entered: set[str] = set()  # inputs typed or selected on this page
+        self.submitted = False  # the first button pressed after the amount was typed
         self.dispatched: set[str] = set()  # buttons pressed after arming
 
     def set_balance(self, text: str) -> bool:
@@ -45,6 +54,16 @@ class ActionGuard:
                 return _decision(Verdict.BLOCK, "needs approval, which is unavailable in discovery")
             if decision.verdict != Verdict.ALLOW:
                 return decision
+        if self.armed and self._is_button(action) and not self.submitted:
+            # The first button pressed after the amount is the one that moves the money: a value
+            # left at its page default would never be recorded, so every input must be entered.
+            missing = [name for name in self._inputs if name not in self.entered]
+            if missing:
+                which = " and ".join(missing)
+                return _decision(
+                    Verdict.BLOCK,
+                    f"the value for {which} was never entered; enter every input before submitting",
+                )
         if self.armed and self._is_button(action) and self._key(action) in self.dispatched:
             return _decision(Verdict.BLOCK, "already submitted; verify the outcome instead")
         return _decision(Verdict.ALLOW, "allowed")
@@ -63,10 +82,14 @@ class ActionGuard:
         was_armed = self.armed
         if urlparse(url_before).path != urlparse(url_after).path:
             self.armed = False
+            self.entered.clear()  # a new page starts with fresh fields
+        if provenance == "parameter" and param and action.tool in {"type", "select"}:
+            self.entered.add(param)
         if self._types_amount(action, provenance, param):
             self.armed = True
         elif was_armed and self._is_button(action):
             self.dispatched.add(self._key(action))
+            self.submitted = True
 
     def landing(self, url: str) -> Decision:
         return self._gate.check(url)

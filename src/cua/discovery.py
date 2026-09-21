@@ -107,7 +107,7 @@ class DiscoveryRun:
         self.system_prompt, self.start_url = system_prompt, start_url
         self.config = config or DiscoveryConfig()
         self.clock = clock
-        self.guard = ActionGuard(gate, self.params, spec.amount_input)
+        self.guard = ActionGuard(gate, self.params, spec.amount_input, tuple(spec.inputs))
         self.tools = tool_definitions(spec.extract_descriptions(self.params))
         self.extract_names = set(spec.extracts)
         self.steps: list[TraceStep] = []
