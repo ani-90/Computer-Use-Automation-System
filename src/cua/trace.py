@@ -55,6 +55,8 @@ class DiscoveryResult(_Model):
     input_tokens: int = 0
     output_tokens: int = 0
     elapsed_seconds: float = 0.0
+    max_steps: int = 30  # the limits this run was allowed, so a result is honest about its bound
+    timeout_s: float = 300.0
 
     def summary(self) -> dict:
         data = self.model_dump(mode="json", exclude={"steps"})

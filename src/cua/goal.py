@@ -14,6 +14,11 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from cua.models import SHAPES, ParamSpec
 
 
+class PolicyBlockError(ValueError):
+    """The parameters break a policy rule. Raised before anything is dispatched, so a replay
+    can report it as POLICY_BLOCK without ever touching the browser."""
+
+
 def _placeholders(text: str) -> set[str]:
     return {name for _, name, _, _ in string.Formatter().parse(text) if name}
 
@@ -50,6 +55,7 @@ class GoalSpec(BaseModel):
     extracts: dict[str, ExtractSpec]
     amount_input: str  # the input the Policy Gate treats as the amount
     balance_extract: str  # the policy read that supplies the balance to the gate
+    distinct_inputs: list[list[str]] = Field(default_factory=list)  # inputs that must differ
     done_requires: dict[str, list[str]] = Field(default_factory=dict)
 
     @model_validator(mode="after")
@@ -71,6 +77,8 @@ class GoalSpec(BaseModel):
             raise ValueError("balance_extract must name a policy extract")
         if any(not _placeholders(x.description) <= inputs for x in self.extracts.values()):
             raise ValueError("an extract description uses a placeholder that is not an input")
+        if any(not set(group) <= inputs for group in self.distinct_inputs):
+            raise ValueError("distinct_inputs names an input that is not declared")
         return self
 
     def goal_text(self, params: Mapping[str, str]) -> str:
@@ -118,6 +126,10 @@ def parse_params(spec: GoalSpec, raw: Mapping[str, str]) -> dict[str, str]:
             except InvalidOperation:
                 raise ValueError(f"parameter {name} is not a number") from None
         params[name] = value
+    for group in spec.distinct_inputs:
+        values = [params[name] for name in group]
+        if len(set(values)) < len(values):
+            raise PolicyBlockError(f"{' and '.join(group)} must be different")
     return params
 
 

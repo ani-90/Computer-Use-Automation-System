@@ -23,3 +23,4 @@ def test_result_round_trips_and_summarizes():
     summary = result.summary()
     assert (summary["steps"], summary["counted_steps"]) == (2, 1)
     assert (summary["stop_reason"], summary["llm_calls"]) == ("SUCCESS", 3)
+    assert (summary["max_steps"], summary["timeout_s"]) == (30, 300.0)

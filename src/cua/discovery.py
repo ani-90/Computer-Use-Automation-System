@@ -120,6 +120,8 @@ class DiscoveryRun:
             input_tokens=self.tokens_in,
             output_tokens=self.tokens_out,
             elapsed_seconds=self.clock() - self.started,
+            max_steps=self.config.max_steps,  # the bounds this run was allowed, on the record
+            timeout_s=self.config.timeout_s,
         )
         self.logger.write_json("trace.json", result.model_dump(mode="json"))
         self.logger.write_json("result.json", result.summary())
@@ -200,7 +202,9 @@ class DiscoveryRun:
             turn, call_id, history_line(step), f"{message}\n\n{render_observation(self.obs)}",
             is_error=True,
         )
-        return None
+        # Claims are not steps, so without this an agent that keeps claiming "done" would loop
+        # (one paid call each) until the timeout. Any action in between resets the count.
+        return self._track(("report_done", message), failed=True, kind="done_rejected")
 
     def _reject(
         self, turn: _Turn, call_id: str, name: str, message: str, counted: bool, reasoning: str
@@ -342,7 +346,9 @@ class DiscoveryRun:
         return self.adapter.act(handle, Action(action.tool, action.text))
 
     # -- bookkeeping -------------------------------------------------------
-    def _track(self, key: tuple, failed: bool, policy: bool) -> Stop | None:
+    def _track(
+        self, key: tuple, failed: bool, policy: bool = False, kind: str | None = None
+    ) -> Stop | None:
         if not failed:
             self.repeat_key, self.repeat_count, self.repeat_policy = None, 0, 0
             return None
@@ -353,7 +359,7 @@ class DiscoveryRun:
             self.repeat_key, self.repeat_count, self.repeat_policy = key, 1, int(policy)
         if self.repeat_count >= self.config.dead_end_repeats:
             blocked = self.repeat_policy == self.repeat_count
-            return StopReason.DEAD_END, "blocked_by_policy" if blocked else None
+            return StopReason.DEAD_END, "blocked_by_policy" if blocked else kind
         return None
 
     @staticmethod

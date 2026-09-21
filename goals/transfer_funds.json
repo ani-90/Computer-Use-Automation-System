@@ -11,6 +11,7 @@
   },
   "amount_input": "amount",
   "balance_extract": "source_balance_before",
+  "distinct_inputs": [["from_account", "to_account"]],
   "extracts": {
     "source_balance_before": {
       "shape": "money",
@@ -29,7 +30,7 @@
     "transaction_id": {
       "shape": "nonempty",
       "required": false,
-      "description": "The transaction ID of the transfer just made."
+      "description": "The transaction ID of the transfer just made. Optional: if it cannot be found after a genuine search, skip it."
     }
   },
   "done_requires": {

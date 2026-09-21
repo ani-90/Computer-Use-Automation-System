@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from cua.goal import GoalSpec, TaggedValues, parse_params
+from cua.goal import GoalSpec, PolicyBlockError, TaggedValues, parse_params
 
 PROMPT = Path(__file__).resolve().parents[2] / "prompts" / "discovery_system.md"
 
@@ -64,6 +64,7 @@ def _run_live(
     settings = DiscoveryConfig(max_steps=max_steps) if max_steps else DiscoveryConfig()
     print("LIVE RUN: uses the Anthropic API and may move money in the sandbox.")
     print(f"evidence: {logger.dir}")
+    print(f"limits: max_steps={settings.max_steps}, timeout={settings.timeout_s:.0f}s")
     with PlaywrightAdapter(config, logger, secrets=secrets) as adapter:
         result = run_discovery(
             spec=spec,
@@ -102,6 +103,9 @@ def main(argv: list[str] | None = None) -> int:
         start_url = spec.start_url(os.environ)
     except KeyError as e:
         print(f"error: missing environment variable {e}", file=sys.stderr)
+        return 2
+    except PolicyBlockError as e:  # before anything is dispatched: no browser, no model call
+        print(f"policy block: {e}", file=sys.stderr)
         return 2
     except (ValueError, OSError) as e:
         print(f"error: {e}", file=sys.stderr)

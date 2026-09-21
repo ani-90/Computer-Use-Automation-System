@@ -341,6 +341,51 @@ def test_report_stuck_is_a_dead_end(tmp_path):
     assert (result.stop_reason, result.detail) == (StopReason.DEAD_END, "report_stuck")
 
 
+def test_repeated_rejected_done_claims_end_the_run_long_before_the_timeout(tmp_path):
+    claim = lambda s: call("report_done", reasoning="done")
+    result, _, llm, log = run(tmp_path, [claim] * 4)
+    assert (result.stop_reason, result.detail) == (StopReason.DEAD_END, "done_rejected")
+    assert result.llm_calls == len(llm.calls) == 3 and result.elapsed_seconds < 5
+    claims = [s for s in result.steps if s.tool == "report_done"]
+    assert len(claims) == 3 and not any(s.counted for s in claims)
+    assert all("was not captured" in s.error for s in claims)  # the reasons are on the record
+    meta = json.loads((log.dir / "result.json").read_text(encoding="utf-8"))
+    assert meta["detail"] == "done_rejected"
+
+
+def test_an_action_between_done_claims_resets_the_count(tmp_path):
+    claim = lambda s: call("report_done", reasoning="done")
+    script = [
+        claim, claim,
+        lambda s: call("type", ref=ref(s, "Username"), text="svc-user", expect="x"),
+        claim, claim,
+        call("report_stuck", reasoning="stop"),
+    ]
+    result, *_ = run(tmp_path, script)
+    assert result.detail == "report_stuck"  # never three in a row
+
+
+def test_the_bounds_of_the_run_are_recorded(tmp_path):
+    config = DiscoveryConfig(max_steps=2, timeout_s=99)
+    result, _, _, log = run(tmp_path, login(), config=config)
+    for name in ("result.json", "trace.json"):
+        meta = json.loads((log.dir / name).read_text(encoding="utf-8"))
+        assert (meta["max_steps"], meta["timeout_s"]) == (2, 99.0), name
+    assert result.stop_reason == StopReason.MAX_STEPS_EXCEEDED
+
+
+def test_the_model_receives_the_config_derived_descriptions_and_goal(tmp_path):
+    _, _, llm, _ = run(tmp_path, [call("report_stuck", reasoning="x")])
+    extract = next(t for t in llm.calls[0]["tools"] if t["name"] == "extract")
+    for name, meaning in SPEC.extract_descriptions(PARAMS).items():
+        assert f"{name}: {meaning}" in extract["description"]
+    assert "record each part under this name" in extract["description"]
+    assert "Optional: if it cannot be found after a genuine search, skip it." in (
+        extract["description"]
+    )
+    assert SPEC.goal_text(PARAMS) in json.dumps(llm.calls[0]["messages"][0])
+
+
 def test_a_model_failure_ends_the_run_and_still_writes_the_result(tmp_path):
     def broken(_site):
         raise LLMError("APIConnectionError: down")

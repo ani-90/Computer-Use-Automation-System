@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from cua.goal import GoalSpec, TaggedValues, parse_params
+from cua.goal import GoalSpec, PolicyBlockError, TaggedValues, parse_params
 
 SPEC_PATH = Path(__file__).resolve().parent.parent / "goals" / "transfer_funds.json"
 PARAMS = {"from_account": "acct-a", "to_account": "acct-b", "amount": "5"}
@@ -65,6 +65,15 @@ def test_parse_params_validates_names_and_values():
         parse_params(spec, {**PARAMS, "to_account": " "})  # empty
     with pytest.raises(ValueError):
         parse_params(spec, {**PARAMS, "amount": "lots"})  # not a number
+
+
+def test_the_two_accounts_must_differ_before_anything_is_dispatched():
+    spec = load()
+    assert spec.distinct_inputs == [["from_account", "to_account"]]
+    with pytest.raises(PolicyBlockError, match="from_account and to_account must be different"):
+        parse_params(spec, {**PARAMS, "to_account": PARAMS["from_account"]})
+    with pytest.raises(ValidationError):
+        GoalSpec.model_validate(raw() | {"distinct_inputs": [["from_account", "nope"]]})
 
 
 def test_classify_labels_values_by_where_they_came_from():

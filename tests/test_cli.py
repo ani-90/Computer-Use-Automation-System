@@ -38,6 +38,16 @@ def test_missing_environment_variable_is_reported(monkeypatch, capsys):
     assert "PARABANK_PASSWORD" in capsys.readouterr().err
 
 
+def test_the_same_account_twice_is_a_policy_block_before_anything_starts(monkeypatch, capsys):
+    set_env(monkeypatch)
+    started = []
+    monkeypatch.setattr("cua.cli._run_live", lambda *args: started.append(args) or 0)
+    same = ["--param", "from_account=acct-a", "--param", "to_account=acct-a", "--param", "amount=5"]
+    assert main(["discover", "--goal", SPEC_PATH, *same]) == 2
+    assert "policy block: from_account and to_account must be different" in capsys.readouterr().err
+    assert started == []  # nothing was dispatched
+
+
 def test_a_real_run_starts_the_live_path_with_the_parsed_arguments(monkeypatch):
     set_env(monkeypatch)
     calls = []
