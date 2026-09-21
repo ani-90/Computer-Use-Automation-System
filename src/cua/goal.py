@@ -4,7 +4,7 @@ Target-specific knowledge lives in the spec file, never in the agent's prompt.
 """
 
 import string
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Literal, Self
@@ -93,13 +93,21 @@ class GoalSpec(BaseModel):
     def secrets(self, env: Mapping[str, str]) -> dict[str, str]:
         return {name: env[var] for name, var in self.secrets_env.items()}
 
-    def check_done(self, captured: Mapping[str, str], params: Mapping[str, str]) -> list[str]:
+    def check_done(
+        self,
+        captured: Mapping[str, str],
+        params: Mapping[str, str],
+        entered: Collection[str] | None = None,
+    ) -> list[str]:
         """What is still missing; an empty list means the done condition holds.
 
         Runs on the captured outputs, not the live page: the agent finishes elsewhere.
-        The messages are generic on purpose and never quote the required phrases.
+        The messages are generic on purpose and never quote the required phrases. When
+        `entered` is given, every declared input must be in it (typed or selected in a step).
         """
         problems = []
+        if entered is not None:
+            problems += [f"the value for {n} was never entered" for n in self.inputs if n not in entered]
         for name, spec in self.extracts.items():
             if spec.purpose == "output" and spec.required and name not in captured:
                 problems.append(f"{name} was not captured")

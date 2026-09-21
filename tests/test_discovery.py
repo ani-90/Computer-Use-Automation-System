@@ -263,6 +263,32 @@ def last_user_text(llm: FakeLLM, index: int = -1) -> str:
     return json.dumps(llm.calls[index]["messages"][-1])
 
 
+def assert_api_rules(messages: list[dict]) -> None:
+    """The structural rules the real API enforces and the fake model cannot."""
+    assert messages[0]["role"] == "user" and messages[-1]["role"] == "user"
+    for before, after in itertools.pairwise(messages):
+        assert before["role"] != after["role"], "roles must alternate"
+    for i, message in enumerate(messages):
+        blocks = message["content"]
+        assert blocks, "a message needs content"
+        kinds = [b["type"] for b in blocks]
+        if "tool_result" in kinds:  # tool results must come before any other block
+            first_other = next((k for k, kind in enumerate(kinds) if kind != "tool_result"), len(kinds))
+            assert "tool_result" not in kinds[first_other:], "tool results must come first"
+        for block in blocks:
+            if block["type"] == "text":
+                assert block["text"].strip(), "no empty text blocks"
+            if block["type"] == "tool_result":
+                assert block["content"]
+                if block["is_error"]:  # the crash we hit live: an error result may hold only text
+                    assert all(c["type"] == "text" for c in block["content"])
+        uses = [b["id"] for b in blocks if b["type"] == "tool_use"]
+        if uses:
+            following = messages[i + 1]["content"] if i + 1 < len(messages) else []
+            answered = [b["tool_use_id"] for b in following if b["type"] == "tool_result"]
+            assert sorted(answered) == sorted(uses), "every tool call needs exactly one result"
+
+
 # -- the success path ---------------------------------------------------------------------
 def test_full_success_path(tmp_path):
     result, site, llm, _ = run(tmp_path, success_script())
@@ -395,6 +421,60 @@ def test_the_bounds_of_the_run_are_recorded(tmp_path):
         meta = json.loads((log.dir / name).read_text(encoding="utf-8"))
         assert (meta["max_steps"], meta["timeout_s"]) == (2, 99.0), name
     assert result.stop_reason == StopReason.MAX_STEPS_EXCEEDED
+
+
+def test_every_message_sent_follows_the_apis_structural_rules(tmp_path):
+    claim = lambda s: call("report_done", reasoning="done")
+    admin = lambda s: call("click", ref=ref(s, "Admin Page"), expect="x")
+    bad_select = lambda s: call("select", ref=ref(s, "From", True), value="nope", expect="x")
+    idle = LLMResponse([{"type": "text", "text": "hmm"}], "end_turn", 1, 1)
+    mixed = [
+        call("teleport"),
+        lambda s: call("click", ref=99, expect="x"),
+        lambda s: [
+            call("type", ref=ref(s, "Username"), text="svc-user", expect="x"),
+            call("type", ref=ref(s, "Password"), text="svc-pass", expect="x"),
+        ],
+        call("report_stuck", reasoning="stop"),
+    ]
+    scenarios = [
+        (success_script(), None),  # ordinary results
+        ([admin, admin, admin], None),  # blocked: the live crash
+        ([bad_select, bad_select, bad_select], FakeSite(path=TRANSFER)),  # failed actions
+        ([claim, claim, claim], None),  # rejected done claims
+        (mixed, None),  # invalid call, bad reference, parallel calls
+        ([idle, idle, idle], None),  # replies with no tool call
+    ]
+    for script, site in scenarios:
+        _, _, llm, _ = run(tmp_path, script, site=site)
+        for sent in llm.calls:
+            assert_api_rules(sent["messages"])
+            assert count_images(sent["messages"]) <= 1  # only the latest screenshot
+
+
+def test_a_blocked_result_keeps_its_screenshot_as_a_separate_block(tmp_path):
+    admin = lambda s: call("click", ref=ref(s, "Admin Page"), expect="x")
+    _, _, llm, _ = run(tmp_path, [admin, call("report_stuck", reasoning="stop")])
+    answer = llm.calls[1]["messages"][-1]["content"]
+    assert [b["type"] for b in answer] == ["tool_result", "image"]
+    assert answer[0]["is_error"] is True and [c["type"] for c in answer[0]["content"]] == ["text"]
+    assert "Blocked" in answer[0]["content"][0]["text"]
+
+
+def test_done_is_refused_until_every_input_was_entered_in_a_step(tmp_path):
+    early = [lambda s: call("report_done", reasoning="done")]
+    to_account = [lambda s: call("select", ref=ref(s, "To", True), value="acct-b", expect="x")]
+    script = (
+        read_balance() + open_transfer()
+        + [fill()[0], fill()[2]]  # source and amount only: the destination is left at its default
+        + submit() + finish()[:2] + early + to_account + finish()[2:]
+    )
+    result, _, llm, _ = run(tmp_path, script, site=FakeSite(path=OVERVIEW))
+    rejected = next(s for s in result.steps if s.tool == "report_done" and s.result == "error")
+    assert "the value for to_account was never entered" in rejected.error
+    assert result.stop_reason == StopReason.SUCCESS
+    for sent in llm.calls:
+        assert_api_rules(sent["messages"])
 
 
 def test_the_model_receives_the_config_derived_descriptions_and_goal(tmp_path):

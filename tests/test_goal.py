@@ -111,9 +111,22 @@ def test_confirmation_may_be_recorded_in_parts():
     paragraph = "$5.00 has been transferred from account acct-a to account acct-b."
     base = {"new_balance": "$5.00"}
     assert spec.check_done({**base, "confirmation_text": heading}, PARAMS)  # no accounts
-    assert spec.check_done({**base, "confirmation_text": paragraph}, PARAMS)  # no phrase
+    assert spec.check_done({**base, "confirmation_text": paragraph}, PARAMS) == []  # says it all
     joined = {**base, "confirmation_text": f"{heading}\n{paragraph}"}
     assert spec.check_done(joined, PARAMS) == []
+
+
+def test_check_done_can_require_every_input_to_have_been_entered():
+    spec = load()
+    good = {
+        "confirmation_text": "$5.00 has been transferred from account acct-a to account acct-b.",
+        "new_balance": "$5.00",
+    }
+    assert spec.check_done(good, PARAMS, entered={"from_account", "amount"}) == [
+        "the value for to_account was never entered"
+    ]
+    assert spec.check_done(good, PARAMS, entered=set(spec.inputs)) == []
+    assert spec.check_done(good, PARAMS) == []  # not asked to check: as before
 
 
 def test_gate_wiring_must_point_at_the_right_things():

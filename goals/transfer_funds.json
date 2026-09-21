@@ -34,6 +34,6 @@
     }
   },
   "done_requires": {
-    "confirmation_text": ["Transfer Complete", "{from_account}", "{to_account}"]
+    "confirmation_text": ["has been transferred", "{from_account}", "{to_account}"]
   }
 }

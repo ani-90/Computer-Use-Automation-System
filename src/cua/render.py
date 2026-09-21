@@ -74,13 +74,15 @@ def history_line(step: TraceStep) -> str:
     return line
 
 
+def image_block(png: bytes) -> dict:
+    data = base64.b64encode(png).decode("ascii")
+    return {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": data}}
+
+
 def user_content(text: str, screenshot: bytes | None = None) -> list[dict]:
     blocks: list[dict] = [{"type": "text", "text": text}]
     if screenshot:
-        data = base64.b64encode(screenshot).decode("ascii")
-        blocks.append(
-            {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": data}}
-        )
+        blocks.append(image_block(screenshot))
     return blocks
 
 

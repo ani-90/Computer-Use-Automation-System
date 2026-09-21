@@ -19,7 +19,7 @@ from cua.goal import GoalSpec, TaggedValues
 from cua.guard import ActionGuard
 from cua.llm import LLM, LLMError, LLMResponse
 from cua.policy_gate import PolicyGate
-from cua.render import history_line, render_observation, strip_images, user_content
+from cua.render import history_line, image_block, render_observation, strip_images, user_content
 from cua.tools import ActionError, AgentAction, parse_action, tool_definitions
 from cua.trace import DiscoveryResult, GateRecord, TraceStep
 
@@ -44,31 +44,45 @@ class _Turn:
     results: list[dict] = field(default_factory=list)
 
 
-def _blocks(result: dict, latest: bool) -> list[dict]:
-    """Old results collapse to one line of text; only the latest carries the screenshot."""
-    if latest and result.get("full") is not None:
-        content = user_content(result["full"], result.get("screenshot"))
-    else:
-        content = [{"type": "text", "text": result["collapsed"]}]
+def _parts(result: dict, latest: bool) -> tuple[list[dict], list[dict]]:
+    """(tool_result blocks, trailing blocks) for one result.
+
+    Old results collapse to one line of text; only the latest carries the screenshot. The API
+    accepts only text inside an error result, so there the screenshot follows as its own block.
+    """
+    full = result.get("full") if latest else None
+    text = full if full is not None else result["collapsed"]
+    image = result.get("screenshot") if full is not None else None
     if result["id"] is None:  # a plain message, not the answer to a tool call
-        return content
-    return [
-        {
+        return [], user_content(text, image)
+    if result["is_error"]:
+        head = {
             "type": "tool_result",
             "tool_use_id": result["id"],
-            "is_error": result["is_error"],
-            "content": content,
+            "is_error": True,
+            "content": [{"type": "text", "text": text}],
         }
-    ]
+        return [head], [image_block(image)] if image else []
+    head = {
+        "type": "tool_result",
+        "tool_use_id": result["id"],
+        "is_error": False,
+        "content": user_content(text, image),
+    }
+    return [head], []
+
+
+def _user_blocks(results: list[dict], latest: bool) -> list[dict]:
+    """All tool results first, then everything else: the order the API requires."""
+    parts = [_parts(result, latest) for result in results]
+    return [b for head, _ in parts for b in head] + [b for _, tail in parts for b in tail]
 
 
 def _build_messages(first_text: str, first_image: bytes, turns: list[_Turn]) -> list[dict]:
     messages = [{"role": "user", "content": user_content(first_text, None if turns else first_image)}]
     for i, turn in enumerate(turns):
         messages.append({"role": "assistant", "content": turn.assistant})
-        latest = i == len(turns) - 1
-        content = [b for result in turn.results for b in _blocks(result, latest)]
-        messages.append({"role": "user", "content": content})
+        messages.append({"role": "user", "content": _user_blocks(turn.results, i == len(turns) - 1)})
     return messages
 
 
@@ -203,7 +217,14 @@ class DiscoveryRun:
         return self._act(turn, call["id"], action, reasoning)
 
     def _done(self, turn: _Turn, call_id: str, action: AgentAction, reasoning: str) -> Stop | None:
-        problems = self.spec.check_done(self.captured, self.params)
+        # An input left at the page's default was never bound, so a compiled artifact would
+        # not carry it: every declared input must have been typed or selected in a step.
+        entered = {
+            s.param
+            for s in self.steps
+            if s.provenance == "parameter" and s.result == "ok" and s.checkpoint_status != "failed"
+        }
+        problems = self.spec.check_done(self.captured, self.params, entered)
         if not problems:
             self._record(tool="report_done", counted=False, result="ok", reasoning=reasoning)
             return StopReason.SUCCESS, None
@@ -445,7 +466,7 @@ class DiscoveryRun:
         self.logger.append_jsonl("transcript.jsonl", strip_images({"role": role, "content": content}))
 
     def _flush(self, turn: _Turn) -> None:
-        self._transcript("user", [b for r in turn.results for b in _blocks(r, True)])
+        self._transcript("user", _user_blocks(turn.results, True))
 
     @staticmethod
     def _reasoning(content: list[dict]) -> str:
