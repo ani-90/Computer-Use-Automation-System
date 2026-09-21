@@ -20,6 +20,7 @@ def _parser() -> argparse.ArgumentParser:
     discover.add_argument("--param", action="append", default=[], metavar="NAME=VALUE")
     discover.add_argument("--dry-run", action="store_true", help="validate and show the goal only")
     discover.add_argument("--max-steps", type=int, default=None, help="override MAX_STEPS")
+    discover.add_argument("--timeout", type=float, default=None, help="override TIMEOUT (seconds)")
     return parser
 
 
@@ -39,6 +40,7 @@ def _run_live(
     tagged: TaggedValues,
     start_url: str,
     max_steps: int | None,
+    timeout: float | None,
 ) -> int:
     # Imported here so --dry-run and the tests never load the browser or the SDK.
     from cua.adapter import PlaywrightAdapter
@@ -61,7 +63,8 @@ def _run_live(
     secrets = list(tagged.secrets.values())
     redactor = Redactor(config, secrets=secrets)
     logger = EvidenceLogger(new_run_id(), redactor)
-    settings = DiscoveryConfig(max_steps=max_steps) if max_steps else DiscoveryConfig()
+    limits = {"max_steps": max_steps, "timeout_s": timeout}
+    settings = DiscoveryConfig(**{k: v for k, v in limits.items() if v})
     print("LIVE RUN: uses the Anthropic API and may move money in the sandbox.")
     print(f"evidence: {logger.dir}")
     print(f"limits: max_steps={settings.max_steps}, timeout={settings.timeout_s:.0f}s")
@@ -111,7 +114,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {e}", file=sys.stderr)
         return 2
     if not args.dry_run:
-        return _run_live(spec, params, tagged, start_url, args.max_steps)
+        return _run_live(spec, params, tagged, start_url, args.max_steps, args.timeout)
     print(f"start URL:            {start_url}")
     print(f"tagged parameters:    {', '.join(tagged.params)}")
     print(f"secrets (not shown):  {', '.join(tagged.secrets)}")
