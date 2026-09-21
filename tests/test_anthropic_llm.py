@@ -81,21 +81,34 @@ def test_sdk_errors_become_llm_errors():
         llm.complete(system="S", messages=[], tools=[])
 
 
-def test_missing_credentials_are_caught_before_any_request():
-    def missing(_headers, _custom):
-        raise TypeError("Could not resolve authentication method")
+def _client_with(auth_headers: dict) -> FakeClient:
+    def validate(headers, _custom):  # like the SDK: it looks at the headers it is given
+        if "X-Api-Key" not in headers:
+            raise TypeError("Could not resolve authentication method")
 
     client = FakeClient(reply([]))
-    client._validate_headers = missing
+    client._validate_headers = validate
+    client.auth_headers = auth_headers
+    return client
+
+
+def test_missing_credentials_are_caught_before_any_request():
+    client = _client_with({})
     with pytest.raises(LLMError, match="no Anthropic credentials"):
         AnthropicLLM(client=client).check_credentials()
     assert client.calls == []
 
 
-def test_resolvable_credentials_pass_and_clients_without_the_check_are_skipped():
-    ok = FakeClient(reply([]))
-    ok._validate_headers = lambda _headers, _custom: None
-    AnthropicLLM(client=ok).check_credentials()
+def test_a_client_that_has_a_key_passes_the_check():
+    AnthropicLLM(client=_client_with({"X-Api-Key": "k"})).check_credentials()
+
+
+def test_the_real_sdk_client_with_a_key_passes_the_check():
+    # Regression: the check once passed empty headers and rejected every client, key or not.
+    AnthropicLLM(client=anthropic.Anthropic(api_key="not-a-real-key")).check_credentials()
+
+
+def test_clients_without_the_check_are_skipped():
     AnthropicLLM(client=FakeClient(reply([]))).check_credentials()  # nothing to validate
 
 

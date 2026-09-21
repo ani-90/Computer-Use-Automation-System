@@ -35,7 +35,7 @@ class AnthropicLLM:
         if validate is None:
             return
         try:
-            validate({}, {})
+            validate(getattr(self._client, "auth_headers", {}), {})  # the client's own headers
         except TypeError as e:
             raise LLMError(f"no Anthropic credentials: {e}") from e
 
