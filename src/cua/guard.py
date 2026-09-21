@@ -87,7 +87,9 @@ class ActionGuard:
             self.entered.add(param)
         if self._types_amount(action, provenance, param):
             self.armed = True
-        elif was_armed and self._is_button(action):
+        elif was_armed and self._is_button(action) and not self.submitted:
+            # Only the first button pressed after the amount is the submission. Buttons pressed
+            # later (a read-only search, for example) are ordinary and may be pressed again.
             self.dispatched.add(self._key(action))
             self.submitted = True
 

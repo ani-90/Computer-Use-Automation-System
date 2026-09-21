@@ -142,6 +142,28 @@ def test_only_the_first_submit_is_gated_so_a_later_search_page_is_not_blocked():
     )
 
 
+def test_a_later_search_button_can_be_pressed_again_but_the_first_submit_cannot():
+    # Regression from a live run: pressing the search button a second time was refused as
+    # "already submitted", because every button pressed after the amount had been remembered.
+    gate = PolicyGate(Config(approval_threshold=Decimal(100)))
+    g = ActionGuard(gate, {"amount": "5"}, "amount", ("amount",))
+    g.set_balance("$100.00")
+    enter(g, "amount", type_amount())
+    transfer = click("button", "Transfer")
+    g.after(transfer, TRANSFER, TRANSFER, True, "other", None)
+    search_url = "http://h/parabank/findtrans.htm"
+    g.after(click("link", "Find"), TRANSFER, search_url, True, "other", None)
+    enter(g, "amount", type_amount(), search_url)
+    search = click("button", "Find Transactions")
+    for _ in range(3):  # a read-only button, pressed as often as the agent likes
+        assert g.check(search, search_url, "other", None).verdict == Verdict.ALLOW
+        g.after(search, search_url, search_url, True, "other", None)
+    g.after(click("link", "Transfer Funds"), search_url, TRANSFER, True, "other", None)
+    enter(g, "amount", type_amount())
+    again = g.check(transfer, TRANSFER, "other", None)  # the real submission stays protected
+    assert again.verdict == Verdict.BLOCK and "already submitted" in again.reason
+
+
 def test_links_never_count_as_a_submission_and_navigation_disarms():
     g = guard("5")
     g.set_balance("$100.00")
