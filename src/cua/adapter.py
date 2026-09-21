@@ -3,7 +3,7 @@
 import re
 import time
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Literal, Self
 from urllib.parse import urljoin
@@ -160,6 +160,15 @@ def _parse_texts(lines: list[str], first_index: int) -> list[TextNode]:
                 locator = Locator(description=f'cell[row "{anchor}", {where}]', chain=[cand])
         nodes.append(TextNode(idx, kind, text, locator, table, row, pos, column))
     return nodes
+
+
+def _should_mask(shown: str, pattern: str | None, secrets: Collection[str]) -> bool:
+    """Whether a form control's visible value must be hidden in a saved screenshot."""
+    if not shown:
+        return False
+    if any(secret and secret in shown for secret in secrets):
+        return True
+    return bool(pattern and re.search(pattern, shown))
 
 
 class PlaywrightAdapter:
@@ -428,4 +437,22 @@ class PlaywrightAdapter:
     def _masked_screenshot(self, page: Page) -> bytes:
         pattern = self._config.redaction_patterns.get("account_number")
         masks = [page.get_by_text(re.compile(pattern))] if pattern else []
+        masks += self._control_masks(page, pattern)
         return page.screenshot(mask=masks)
+
+    def _control_masks(self, page: Page, pattern: str | None) -> list[PWLocator]:
+        """Dropdowns and inputs draw their value natively, so text matching never reaches them."""
+        controls = page.locator("select, input")
+        masks: list[PWLocator] = []
+        for i in range(controls.count()):
+            control = controls.nth(i)
+            try:
+                shown = control.evaluate(
+                    "e => e.tagName === 'SELECT' ? (e.selectedOptions[0]?.text ?? '') : e.value",
+                    timeout=500,
+                )
+            except PlaywrightError:
+                continue
+            if _should_mask(shown or "", pattern, self._secrets):
+                masks.append(control)
+        return masks

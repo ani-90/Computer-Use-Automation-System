@@ -1,6 +1,6 @@
 """Snapshot-parsing helpers of PlaywrightAdapter, checked on real snapshot line shapes. No browser."""
 
-from cua.adapter import _SNAPSHOT_ROW, PlaywrightAdapter, _parse_texts
+from cua.adapter import _SNAPSHOT_ROW, PlaywrightAdapter, _parse_texts, _should_mask
 from cua.config import Config
 
 SECRET = "not-a-real-secret"
@@ -106,6 +106,25 @@ def test_table_without_headers_has_no_column_names():
     assert [(n.text, n.col, n.column) for n in cells] == [
         ("Transaction ID:", 0, None), ("42", 1, None),
     ]
+
+
+ACCOUNT_PATTERN = r"\b\d{5,12}\b"
+
+
+def test_controls_showing_an_account_number_or_a_credential_are_masked():
+    # Regression: a dropdown draws its value natively, and the text mask never reached it.
+    assert _should_mask("55555", ACCOUNT_PATTERN, set())  # a dropdown showing an account
+    assert _should_mask("Checking 55555", ACCOUNT_PATTERN, set())
+    assert _should_mask("svc-user", ACCOUNT_PATTERN, {"svc-user"})  # the typed username
+    assert _should_mask("svc-pass", ACCOUNT_PATTERN, {"svc-pass"})
+
+
+def test_controls_holding_harmless_values_stay_visible():
+    assert not _should_mask("9", ACCOUNT_PATTERN, set())  # an amount
+    assert not _should_mask("09-21-2026", ACCOUNT_PATTERN, set())  # a date
+    assert not _should_mask("", ACCOUNT_PATTERN, {"svc-user"})  # an empty field
+    assert not _should_mask("hello", ACCOUNT_PATTERN, {""})  # an empty secret matches nothing
+    assert not _should_mask("55555", None, set())  # no pattern configured
 
 
 def test_headerless_table_cell_uses_its_position():
