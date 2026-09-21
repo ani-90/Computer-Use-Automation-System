@@ -1,11 +1,12 @@
 """Surface adapter: the only module allowed to import playwright."""
 
 import re
+import time
 from collections import Counter
 from dataclasses import dataclass
 from typing import Literal, Self
 
-from playwright.sync_api import Browser, Page, Playwright, sync_playwright
+from playwright.sync_api import Browser, Page, Playwright, Request, sync_playwright
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Locator as PWLocator
 
@@ -17,8 +18,10 @@ INTERACTIVE_ROLES = {
     "button", "link", "textbox", "combobox", "checkbox", "radio", "searchbox", "spinbutton",
 }
 _FIELD_ROLES = {"textbox", "combobox", "checkbox", "radio", "searchbox", "spinbutton"}
-_SNAPSHOT_ROW = re.compile(r'^\s*- (?P<role>[a-z]+)(?: "(?P<name>(?:[^"\\]|\\.)*)")?')
+_SNAPSHOT_ROW = re.compile(r'''^\s*- '?(?P<role>[a-z]+)(?: "(?P<name>(?:[^"\\]|\\.)*)")?''')
 _TEXT_ROW = re.compile(r"^\s*- (?:paragraph|text): (?P<text>.+)$")
+_SETTLE_POLL_MS = 300
+_SETTLE_TIMEOUT_S = 5.0
 
 
 class LocatorNotFound(Exception):
@@ -73,12 +76,16 @@ class PlaywrightAdapter:
         self._pw: Playwright | None = None
         self._browser: Browser | None = None
         self._page: Page | None = None
+        self._inflight: set[Request] = set()
 
     def start(self) -> None:
         self._pw = sync_playwright().start()
         self._browser = self._pw.chromium.launch(headless=False)  # always headed
         self._page = self._browser.new_context().new_page()
         self._page.set_default_timeout(self._timeout)
+        self._page.on("request", self._track)
+        self._page.on("requestfinished", self._untrack)
+        self._page.on("requestfailed", self._untrack)
 
     def close(self) -> None:
         if self._browser:
@@ -95,10 +102,9 @@ class PlaywrightAdapter:
 
     def observe(self) -> Observation:
         page = self._require_page()
-        page.wait_for_load_state("networkidle")
-        lines = page.locator("body").aria_snapshot().splitlines()
+        lines = self._settled_snapshot(page)
         rows = [
-            (i, m["role"], self._clean(m["name"]))
+            (i, m["role"], (m["name"] or "").replace('\\"', '"'))
             for i, line in enumerate(lines)
             if (m := _SNAPSHOT_ROW.match(line)) and m["role"] in INTERACTIVE_ROLES
         ]
@@ -168,6 +174,25 @@ class PlaywrightAdapter:
         page.goto(target)
         page.wait_for_load_state("networkidle")
 
+    def _settled_snapshot(self, page: Page) -> list[str]:
+        """Wait until no request is in flight and two consecutive snapshots match.
+
+        networkidle alone returns early after an in-page AJAX update (seen live: the search
+        results appeared 3s after it returned), so it is only a cheap first pass.
+        """
+        page.wait_for_load_state("networkidle")
+        previous = None
+        deadline = time.monotonic() + _SETTLE_TIMEOUT_S
+        while True:
+            snapshot = page.locator("body").aria_snapshot()
+            if not self._inflight and snapshot == previous:
+                return snapshot.splitlines()
+            if time.monotonic() >= deadline:
+                self._log("settle_timeout", inflight=len(self._inflight))
+                return snapshot.splitlines()
+            previous = snapshot
+            page.wait_for_timeout(_SETTLE_POLL_MS)
+
     # -- helpers ---------------------------------------------------------
     def _require_page(self) -> Page:
         if self._page is None:
@@ -178,11 +203,11 @@ class PlaywrightAdapter:
         if self._logger:
             self._logger.log(event, **data)
 
-    @staticmethod
-    def _clean(raw: str | None) -> str:
-        name = (raw or "").replace('\\"', '"')
-        # Names with special characters come back wrapped in an extra pair of quotes.
-        return name[1:-1] if len(name) >= 2 and name[0] == name[-1] == '"' else name
+    def _track(self, request: Request) -> None:
+        self._inflight.add(request)
+
+    def _untrack(self, request: Request) -> None:
+        self._inflight.discard(request)
 
     @staticmethod
     def _describe(role: str, name: str, nth: int | None = None) -> Locator:
@@ -197,7 +222,12 @@ class PlaywrightAdapter:
     @staticmethod
     def _hint(lines: list[str], i: int) -> str | None:
         m = _TEXT_ROW.match(lines[i - 1]) if i > 0 else None
-        return m["text"].strip() if m else None
+        if not m:
+            return None
+        text = m["text"].strip()
+        if len(text) >= 2 and text[0] == text[-1] == '"':  # the snapshot quotes text with a colon
+            text = text[1:-1].replace('\\"', '"')
+        return text
 
     @staticmethod
     def _describe_unnamed(role: str, hint: str | None, nth: int) -> Locator:
