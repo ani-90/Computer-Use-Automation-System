@@ -4,6 +4,7 @@ Each turn the model sees a screenshot and numbered lists and answers with one to
 action passes the guard first. The run ends in exactly one of four ways, always recorded.
 """
 
+import contextlib
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
@@ -109,8 +110,18 @@ class DiscoveryRun:
 
     # -- the run -----------------------------------------------------------
     def run(self) -> DiscoveryResult:
-        stop, detail = self._loop()
-        result = DiscoveryResult(
+        try:
+            stop, detail = self._loop()
+        except BaseException as e:
+            # Leave a partial record, then let the crash surface. The "crashed:" prefix is
+            # greppable, so a bug in our code never reads as an agent dead end.
+            with contextlib.suppress(Exception):  # never hide the original error
+                self._write(self._result(StopReason.DEAD_END, f"crashed: {type(e).__name__}"))
+            raise
+        return self._write(self._result(stop, detail))
+
+    def _result(self, stop: StopReason, detail: str | None) -> DiscoveryResult:
+        return DiscoveryResult(
             run_id=self.logger.run_id,
             stop_reason=stop,
             detail=detail,
@@ -123,6 +134,8 @@ class DiscoveryRun:
             max_steps=self.config.max_steps,  # the bounds this run was allowed, on the record
             timeout_s=self.config.timeout_s,
         )
+
+    def _write(self, result: DiscoveryResult) -> DiscoveryResult:
         self.logger.write_json("trace.json", result.model_dump(mode="json"))
         self.logger.write_json("result.json", result.summary())
         return result

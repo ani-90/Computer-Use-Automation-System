@@ -10,6 +10,8 @@ import json
 from pathlib import Path
 from urllib.parse import urlparse
 
+import pytest
+
 from cua.adapter import ActionFailed, Candidate, LocatorNotFound, Observation, TextNode
 from cua.config import Config
 from cua.discovery import DiscoveryConfig, run_discovery
@@ -234,13 +236,13 @@ def success_script() -> list:
     return login() + read_balance() + open_transfer() + fill() + submit() + finish()
 
 
-def run(tmp_path, script, *, site=None, params=None, config=None, clock=None):
+def run(tmp_path, script, *, site=None, params=None, config=None, clock=None, logger=None):
     site = site or FakeSite()
     params = params or PARAMS
     kinds = {n: p.type for n, p in SPEC.inputs.items()}
     llm = FakeLLM(site, script)
     redactor = Redactor(Config(), secrets=list(SECRETS.values()))
-    logger = EvidenceLogger(new_run_id(), redactor, base_dir=tmp_path)
+    logger = logger or EvidenceLogger(new_run_id(), redactor, base_dir=tmp_path)
     result = run_discovery(
         spec=SPEC, params=params, tagged=TaggedValues(params, kinds, SECRETS), adapter=site,
         llm=llm, gate=PolicyGate(Config()), logger=logger, system_prompt="SYSTEM",
@@ -363,6 +365,27 @@ def test_an_action_between_done_claims_resets_the_count(tmp_path):
     ]
     result, *_ = run(tmp_path, script)
     assert result.detail == "report_stuck"  # never three in a row
+
+
+def test_a_crash_leaves_a_labelled_partial_record_and_still_propagates(tmp_path):
+    site = FakeSite()
+    honest_act = site.act
+
+    def crashing(handle, action):
+        if action.kind == "click":
+            raise RuntimeError("boom")  # a bug in our code, not an agent failure
+        return honest_act(handle, action)
+
+    site.act = crashing
+    redactor = Redactor(Config(), secrets=list(SECRETS.values()))
+    logger = EvidenceLogger(new_run_id(), redactor, base_dir=tmp_path)
+    with pytest.raises(RuntimeError, match="boom"):
+        run(tmp_path, login(), site=site, logger=logger)
+    meta = json.loads((logger.dir / "result.json").read_text(encoding="utf-8"))
+    assert (meta["stop_reason"], meta["detail"]) == ("DEAD_END", "crashed: RuntimeError")
+    trace = json.loads((logger.dir / "trace.json").read_text(encoding="utf-8"))
+    assert [s["tool"] for s in trace["steps"]] == ["type", "type"]  # everything before the crash
+    assert "svc-pass" not in (logger.dir / "trace.json").read_text(encoding="utf-8")
 
 
 def test_the_bounds_of_the_run_are_recorded(tmp_path):
