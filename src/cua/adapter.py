@@ -4,7 +4,7 @@ import re
 import time
 from collections import Counter
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Literal, Self
 from urllib.parse import urljoin
 
@@ -122,6 +122,10 @@ def _parse_texts(lines: list[str], first_index: int) -> list[TextNode]:
             text = PlaywrightAdapter._yaml_text(t["text"])
             if any(ch.isalnum() for ch in text):  # skips separators like "|"
                 found.append((role, text, None, None, None, None))
+    anchors = {(t, r): x for k, x, t, r, c, _ in found if k == "cell" and c == 0}
+    rows_by_anchor: dict[str, list[tuple[int, int]]] = {}
+    for key, anchor in anchors.items():
+        rows_by_anchor.setdefault(anchor, []).append(key)
     totals = Counter((k, t) for k, t, *_ in found if k in {"heading", "paragraph", "text"})
     seen: dict[tuple[str, str], int] = {}
     nodes: list[TextNode] = []
@@ -137,6 +141,19 @@ def _parse_texts(lines: list[str], first_index: int) -> list[TextNode]:
                 else LocatorCandidate(strategy="text", value=text, nth=at)
             )
             locator = Locator(description=f'{kind} "{text}"', chain=[cand])
+        elif kind == "cell":
+            anchor = anchors.get((table, row))
+            if anchor:  # a row with no first-cell text has nothing to anchor on
+                same = rows_by_anchor[anchor]
+                cand = LocatorCandidate(
+                    strategy="table_cell",
+                    value=anchor,
+                    column=column,
+                    col=None if column else pos,
+                    nth=same.index((table, row)) if len(same) > 1 else None,
+                )
+                where = f'"{column}"' if column else f"col {pos}"
+                locator = Locator(description=f'cell[row "{anchor}", {where}]', chain=[cand])
         nodes.append(TextNode(idx, kind, text, locator, table, row, pos, column))
     return nodes
 
@@ -217,6 +234,7 @@ class PlaywrightAdapter:
                 )
             )
         texts = _parse_texts(lines, first_index=len(candidates) + 1)
+        texts = [self._addressable(page, t) for t in texts]
         return Observation(
             page.url, page.screenshot(), self._masked_screenshot(page), candidates, texts
         )
@@ -262,6 +280,12 @@ class PlaywrightAdapter:
         page = self._require_page()
         page.goto(target)
         page.wait_for_load_state("networkidle")
+
+    def _addressable(self, page: Page, node: TextNode) -> TextNode:
+        """Keep a text node's locator only if it resolves to exactly one element right now."""
+        if node.locator is None or self._build(page, node.locator.chain[0]).count() == 1:
+            return node
+        return replace(node, locator=None)
 
     def _settled_snapshot(self, page: Page) -> list[str]:
         """Wait until no request is in flight and two consecutive snapshots match.
@@ -368,6 +392,19 @@ class PlaywrightAdapter:
                 loc = page.get_by_text(cand.value, exact=True)
             case "placeholder":
                 loc = page.get_by_placeholder(cand.value, exact=True)
+            case "table_cell":
+                rows = page.get_by_role("row").filter(
+                    has=page.get_by_role("cell", name=cand.value, exact=True)
+                )
+                if cand.nth is not None:
+                    rows = rows.nth(cand.nth)
+                if cand.column is None:
+                    return rows.get_by_role("cell").nth(cand.col)
+                header = page.get_by_role("columnheader", name=cand.column, exact=True)
+                if header.count() != 1:
+                    return header  # resolve() reports the miss
+                pos = header.evaluate("e => Array.from(e.parentElement.children).indexOf(e)")
+                return rows.get_by_role("cell").nth(pos)
         return loc if cand.nth is None else loc.nth(cand.nth)
 
     @staticmethod

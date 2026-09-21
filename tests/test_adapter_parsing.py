@@ -85,7 +85,11 @@ def test_table_cells_carry_their_column():
         "Account", "Balance*", "Available Amount",
     ]
     balance = next(n for n in nodes if n.kind == "cell" and n.row == 1 and n.col == 1)
-    assert (balance.table, balance.column, balance.locator) == (0, "Balance*", None)
+    assert (balance.table, balance.column) == (0, "Balance*")
+    cand = balance.locator.chain[0]
+    assert (cand.strategy, cand.value, cand.column, cand.col, cand.nth) == (
+        "table_cell", "acct-a", "Balance*", None, None,
+    )
     assert not any(n.row == 2 and n.col == 2 for n in nodes)  # empty cell is not emitted
 
 
@@ -102,6 +106,40 @@ def test_table_without_headers_has_no_column_names():
     assert [(n.text, n.col, n.column) for n in cells] == [
         ("Transaction ID:", 0, None), ("42", 1, None),
     ]
+
+
+def test_headerless_table_cell_uses_its_position():
+    lines = [
+        "- table:",
+        "  - rowgroup:",
+        "    - 'row \"Transaction ID: 42\"':",
+        '      - cell "Transaction ID:"',
+        '      - cell "42"',
+    ]
+    value = next(n for n in _parse_texts(lines, first_index=1) if n.text == "42")
+    cand = value.locator.chain[0]
+    assert (cand.value, cand.column, cand.col) == ("Transaction ID:", None, 1)
+
+
+def test_rows_sharing_an_anchor_get_a_position():
+    lines = [
+        "- table:",
+        "  - rowgroup:",
+        '    - row "d x":',
+        '      - cell "d"',
+        '      - cell "x"',
+        '    - row "d y":',
+        '      - cell "d"',
+        '      - cell "y"',
+    ]
+    cells = {n.text: n for n in _parse_texts(lines, first_index=1) if n.kind == "cell"}
+    assert (cells["x"].locator.chain[0].nth, cells["y"].locator.chain[0].nth) == (0, 1)
+
+
+def test_row_without_an_anchor_has_no_cell_locator():
+    lines = ["- table:", "  - rowgroup:", '    - row "z":', "      - cell", '      - cell "z"']
+    cell = next(n for n in _parse_texts(lines, first_index=1) if n.text == "z")
+    assert cell.locator is None
 
 
 def test_text_nodes_skip_separators_and_navigation():

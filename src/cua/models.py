@@ -13,16 +13,26 @@ class _Strict(BaseModel):
 
 class LocatorCandidate(_Strict):
     # No css/xpath strategy on purpose: a target is a description, never a raw selector.
-    strategy: Literal["role_name", "label", "text", "placeholder"]
-    value: str | None = None  # accessible name / label / text; None for a role-only match
+    strategy: Literal["role_name", "label", "text", "placeholder", "table_cell"]
+    # accessible name / label / text; for table_cell the row's anchor (its first cell's text).
+    # None for a role-only match.
+    value: str | None = None
     role: str | None = None  # used with role_name
-    nth: int | None = None  # 0-based pick among several matches; -1 means the last match
+    # 0-based pick among several matches; -1 means the last match. For table_cell it picks
+    # among rows that share the anchor.
+    nth: int | None = None
+    column: str | None = None  # table_cell: the column header name
+    col: int | None = None  # table_cell: 0-based position, for tables without headers
 
     @model_validator(mode="after")
     def _check_fields(self) -> Self:
-        if self.strategy == "role_name" and self.role is None:
-            raise ValueError("role_name requires a role")
-        if self.strategy != "role_name" and self.value is None:
+        if self.strategy == "table_cell":
+            if self.value is None or (self.column is None) == (self.col is None):
+                raise ValueError("table_cell requires value and exactly one of column / col")
+        elif self.strategy == "role_name":
+            if self.role is None:
+                raise ValueError("role_name requires a role")
+        elif self.value is None:
             raise ValueError(f"{self.strategy} requires a value")
         return self
 

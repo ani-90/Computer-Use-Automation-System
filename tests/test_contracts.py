@@ -82,6 +82,17 @@ def test_locator_candidate_field_rules():
     LocatorCandidate(strategy="role_name", role="textbox", nth=0)  # role-only match is fine
 
 
+def test_table_cell_locator_field_rules():
+    with pytest.raises(ValidationError):
+        LocatorCandidate(strategy="table_cell", column="Balance*")  # needs an anchor value
+    with pytest.raises(ValidationError):
+        LocatorCandidate(strategy="table_cell", value="row")  # needs a column or a position
+    with pytest.raises(ValidationError):
+        LocatorCandidate(strategy="table_cell", value="row", column="Balance*", col=1)
+    LocatorCandidate(strategy="table_cell", value="{{from_account}}", column="Balance*")
+    LocatorCandidate(strategy="table_cell", value="Transaction ID:", col=1)
+
+
 def test_capability_round_trips_through_json():
     cap = Capability(
         schema_version="1",
