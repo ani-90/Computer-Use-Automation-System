@@ -82,6 +82,15 @@ def test_locator_candidate_field_rules():
     LocatorCandidate(strategy="role_name", role="textbox", nth=0)  # role-only match is fine
 
 
+def test_new_condition_kinds_require_their_fields():
+    with pytest.raises(ValidationError):
+        Condition(kind="field_filled")  # needs a target
+    with pytest.raises(ValidationError):
+        Condition(kind="shape_matches", target=_locator())  # needs a shape name
+    Condition(kind="field_filled", target=_locator())
+    Condition(kind="field_value_equals", target=_locator(), value="{{amount}}")
+
+
 def test_table_cell_locator_field_rules():
     with pytest.raises(ValidationError):
         LocatorCandidate(strategy="table_cell", column="Balance*")  # needs an anchor value

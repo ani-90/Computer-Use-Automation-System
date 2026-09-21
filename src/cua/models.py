@@ -48,14 +48,20 @@ class Condition(_Strict):
     `value` may hold {{param}} placeholders, e.g. text_equals "{{from_account}}".
     """
 
-    kind: Literal["url_matches", "element_visible", "element_absent", "text_present", "text_equals"]
+    kind: Literal[
+        "url_matches", "element_visible", "element_absent", "text_present", "text_equals",
+        "field_value_equals", "field_filled", "option_selected", "option_present", "shape_matches",
+    ]
     target: Locator | None = None
     value: str | None = None
 
     @model_validator(mode="after")
     def _check_fields(self) -> Self:
         needs_target = self.kind != "url_matches"
-        needs_value = self.kind in {"url_matches", "text_present", "text_equals"}
+        needs_value = self.kind in {
+            "url_matches", "text_present", "text_equals",
+            "field_value_equals", "option_selected", "option_present", "shape_matches",
+        }
         if needs_target and self.target is None:
             raise ValueError(f"{self.kind} requires a target")
         if needs_value and self.value is None:
