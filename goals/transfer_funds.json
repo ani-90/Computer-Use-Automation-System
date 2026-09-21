@@ -3,7 +3,7 @@
   "start_page": "index.htm",
   "base_url_env": "PARABANK_BASE_URL",
   "secrets_env": {"username": "PARABANK_USERNAME", "password": "PARABANK_PASSWORD"},
-  "goal_template": "Log in with the credentials provided. Check that account {from_account} has enough balance to cover {amount}, then transfer {amount} from account {from_account} to account {to_account}. Confirm the transfer went through. Report the confirmation message, the new balance of account {from_account}, and the transaction ID of the transfer you just made.",
+  "goal_template": "Log in with the credentials provided. Check that account {from_account} has enough balance to cover {amount}, then transfer {amount} from account {from_account} to account {to_account}. Confirm the transfer went through. Report the confirmation message, the new balance of account {from_account}, and the transaction ID of the transfer you just made, looked up in the transactions of account {from_account}.",
   "inputs": {
     "from_account": {"type": "string"},
     "to_account": {"type": "string"},

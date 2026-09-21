@@ -1,7 +1,7 @@
 """Action guard: the Policy Gate plus the amount rules and the irreversible-step rule."""
 
 import re
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Mapping, Sequence
 from decimal import Decimal
 from urllib.parse import urljoin, urlparse
 
@@ -34,6 +34,9 @@ class ActionGuard:
         self.entered: set[str] = set()  # inputs typed or selected on this page
         self.submitted = False  # the first button pressed after the amount was typed
         self.dispatched: set[str] = set()  # buttons pressed after arming
+        self.chosen: set[str] = set()  # dropdowns selected on this page (by locator)
+        # Dropdowns listing one of these values must be set explicitly, never left at a default.
+        self._listed = {v for k, v in params.items() if k != amount_input}
 
     def set_balance(self, text: str) -> bool:
         cleaned = text.strip().replace("$", "").replace(",", "")
@@ -43,7 +46,12 @@ class ActionGuard:
         return True
 
     def check(
-        self, action: AgentAction, current_url: str, provenance: str, param: str | None
+        self,
+        action: AgentAction,
+        current_url: str,
+        provenance: str,
+        param: str | None,
+        page: Sequence[Candidate] = (),
     ) -> Decision:
         decision = self._gate.check(self._target_url(action, current_url))
         if decision.verdict != Verdict.ALLOW:
@@ -64,6 +72,13 @@ class ActionGuard:
                     Verdict.BLOCK,
                     f"the value for {which} was never entered; enter every input before submitting",
                 )
+        if self._is_button(action) and self._unset_dropdown(page):
+            # A default that happens to be right today is not recorded, so it cannot be replayed.
+            return _decision(
+                Verdict.BLOCK,
+                "a dropdown listing one of your input values was never set on this page; "
+                "select a value in it before pressing a button",
+            )
         if self.armed and self._is_button(action) and self._key(action) in self.dispatched:
             return _decision(Verdict.BLOCK, "already submitted; verify the outcome instead")
         return _decision(Verdict.ALLOW, "allowed")
@@ -83,6 +98,9 @@ class ActionGuard:
         if urlparse(url_before).path != urlparse(url_after).path:
             self.armed = False
             self.entered.clear()  # a new page starts with fresh fields
+            self.chosen.clear()
+        if action.tool == "select" and isinstance(action.element, Candidate):
+            self.chosen.add(self._key(action))
         if provenance == "parameter" and param and action.tool in {"type", "select"}:
             self.entered.add(param)
         if self._types_amount(action, provenance, param):
@@ -95,6 +113,14 @@ class ActionGuard:
 
     def landing(self, url: str) -> Decision:
         return self._gate.check(url)
+
+    def _unset_dropdown(self, page: Sequence[Candidate]) -> bool:
+        return any(
+            c.role == "combobox"
+            and c.locator.model_dump_json() not in self.chosen
+            and any(option.strip() in self._listed for option in c.options)
+            for c in page
+        )
 
     def _types_amount(self, action: AgentAction, provenance: str, param: str | None) -> bool:
         return action.tool == "type" and provenance == "parameter" and param == self._amount_input

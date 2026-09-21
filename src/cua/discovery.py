@@ -273,7 +273,7 @@ class DiscoveryRun:
         }
         key = self._key(action)
 
-        decision = self.guard.check(action, before.url, provenance, param)
+        decision = self.guard.check(action, before.url, provenance, param, before.candidates)
         gate = GateRecord(verdict=decision.verdict, reason=decision.reason)
         if decision.verdict != Verdict.ALLOW:
             step = self._record(**fields, gate=gate, result="blocked", error=decision.reason,

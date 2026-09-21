@@ -164,6 +164,40 @@ def test_a_later_search_button_can_be_pressed_again_but_the_first_submit_cannot(
     assert again.verdict == Verdict.BLOCK and "already submitted" in again.reason
 
 
+def dropdown(name: str, *options: str) -> Candidate:
+    loc = Locator(description=name, chain=[LocatorCandidate(strategy="text", value=name)])
+    return Candidate(3, "combobox", "", name, None, loc, options=options)
+
+
+def test_a_dropdown_listing_an_input_value_must_be_set_before_any_button():
+    # Regression: a search page's account dropdown was left at a default that only happened to
+    # be the right account, so no select was recorded for it.
+    gate = PolicyGate(Config(approval_threshold=Decimal(100)))
+    params = {"from_account": "acct-a", "to_account": "acct-b", "amount": "5"}
+    g = ActionGuard(gate, params, "amount")
+    search = "http://h/parabank/findtrans.htm"
+    accounts = dropdown("Account", "acct-b", "acct-a")
+    find = click("button", "Find")
+    blocked = g.check(find, search, "other", None, [accounts])
+    assert blocked.verdict == Verdict.BLOCK and "dropdown" in blocked.reason
+    pick = AgentAction("select", ref=3, text="acct-a", element=accounts)
+    g.after(pick, search, search, True, "parameter", "from_account")
+    assert g.check(find, search, "other", None, [accounts]).verdict == Verdict.ALLOW
+
+
+def test_dropdowns_without_an_input_value_and_other_pages_are_not_gated():
+    gate = PolicyGate(Config(approval_threshold=Decimal(100)))
+    g = ActionGuard(gate, {"from_account": "acct-a", "amount": "5"}, "amount")
+    unrelated = dropdown("Sort", "newest", "oldest")
+    assert g.check(click("button", "Go"), OVERVIEW, "other", None, [unrelated]).verdict == Verdict.ALLOW
+    accounts = dropdown("Account", "acct-a")
+    assert g.check(click("link", "Home"), OVERVIEW, "other", None, [accounts]).verdict == Verdict.ALLOW
+    pick = AgentAction("select", ref=3, text="acct-a", element=accounts)
+    g.after(pick, TRANSFER, TRANSFER, True, "parameter", "from_account")
+    g.after(click("link", "Home"), TRANSFER, OVERVIEW, True, "other", None)
+    assert g.chosen == set()  # a new page starts with nothing chosen
+
+
 def test_links_never_count_as_a_submission_and_navigation_disarms():
     g = guard("5")
     g.set_balance("$100.00")
