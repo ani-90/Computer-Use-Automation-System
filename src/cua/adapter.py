@@ -4,7 +4,7 @@ import re
 import time
 from collections import Counter
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal, Self
 from urllib.parse import urljoin
 
@@ -58,11 +58,24 @@ class Candidate:
 
 
 @dataclass(frozen=True)
+class TextNode:
+    index: int  # continues after the candidates, so refs are unique across both lists
+    kind: str  # heading | paragraph | text | cell | columnheader
+    text: str
+    locator: Locator | None  # None for table cells until the table-cell locator exists
+    table: int | None = None  # table number, row number and column position (table content)
+    row: int | None = None
+    col: int | None = None
+    column: str | None = None  # the column header, when the table has one
+
+
+@dataclass(frozen=True)
 class Observation:
     url: str
     screenshot: bytes  # raw, for the LLM, in memory only: never write this to disk
     masked_screenshot: bytes  # account numbers boxed out: the only one allowed on disk
     candidates: list[Candidate]
+    texts: list[TextNode] = field(default_factory=list)  # visible non-interactive content
 
 
 @dataclass(frozen=True)
@@ -75,6 +88,57 @@ class ResolvedElement:
 class Action:
     kind: Literal["click", "type", "select", "extract"]
     value: str | None = None
+
+
+def _parse_texts(lines: list[str], first_index: int) -> list[TextNode]:
+    found: list[tuple] = []  # (kind, text, table, row, col, column)
+    headers: list[str] = []
+    table_no = row_no = col = -1
+    table_indent: int | None = None
+    for line in lines:
+        indent = len(line) - len(line.lstrip())
+        if table_indent is not None and indent <= table_indent:
+            table_indent = None  # left the table
+        m = _SNAPSHOT_ROW.match(line)
+        if not m:
+            continue
+        role, name = m["role"], (m["name"] or "").replace('\\"', '"')
+        in_table = table_indent is not None
+        if role == "table":
+            table_no, table_indent, headers, row_no = table_no + 1, indent, [], -1
+        elif role == "row" and in_table:
+            row_no, col = row_no + 1, 0
+        elif role == "columnheader" and in_table:
+            headers.append(name)
+            found.append(("columnheader", name, table_no, row_no, len(headers) - 1, name))
+        elif role == "cell" and in_table:
+            if name:
+                column = headers[col] if col < len(headers) else None
+                found.append(("cell", name, table_no, row_no, col, column))
+            col += 1  # empty cells still occupy a column
+        elif role == "heading" and name:
+            found.append(("heading", name, None, None, None, None))
+        elif role in {"paragraph", "text"} and (t := _TEXT_ROW.match(line)):
+            text = PlaywrightAdapter._yaml_text(t["text"])
+            if any(ch.isalnum() for ch in text):  # skips separators like "|"
+                found.append((role, text, None, None, None, None))
+    totals = Counter((k, t) for k, t, *_ in found if k in {"heading", "paragraph", "text"})
+    seen: dict[tuple[str, str], int] = {}
+    nodes: list[TextNode] = []
+    for idx, (kind, text, table, row, pos, column) in enumerate(found, start=first_index):
+        locator = None
+        if kind in {"heading", "paragraph", "text"}:
+            nth = seen.get((kind, text), 0)
+            seen[(kind, text)] = nth + 1
+            at = nth if totals[(kind, text)] > 1 else None
+            cand = (
+                LocatorCandidate(strategy="role_name", role="heading", value=text, nth=at)
+                if kind == "heading"
+                else LocatorCandidate(strategy="text", value=text, nth=at)
+            )
+            locator = Locator(description=f'{kind} "{text}"', chain=[cand])
+        nodes.append(TextNode(idx, kind, text, locator, table, row, pos, column))
+    return nodes
 
 
 class PlaywrightAdapter:
@@ -152,7 +216,10 @@ class PlaywrightAdapter:
                     value, filled, options, selected, href,
                 )
             )
-        return Observation(page.url, page.screenshot(), self._masked_screenshot(page), candidates)
+        texts = _parse_texts(lines, first_index=len(candidates) + 1)
+        return Observation(
+            page.url, page.screenshot(), self._masked_screenshot(page), candidates, texts
+        )
 
     def resolve(self, locator: Locator) -> ResolvedElement:
         page = self._require_page()
@@ -295,13 +362,13 @@ class PlaywrightAdapter:
             case "role_name":
                 kwargs = {"name": cand.value, "exact": True} if cand.value else {}
                 loc = page.get_by_role(cand.role, **kwargs)
-                return loc if cand.nth is None else loc.nth(cand.nth)
             case "label":
-                return page.get_by_label(cand.value, exact=True)
+                loc = page.get_by_label(cand.value, exact=True)
             case "text":
-                return page.get_by_text(cand.value, exact=True)
+                loc = page.get_by_text(cand.value, exact=True)
             case "placeholder":
-                return page.get_by_placeholder(cand.value, exact=True)
+                loc = page.get_by_placeholder(cand.value, exact=True)
+        return loc if cand.nth is None else loc.nth(cand.nth)
 
     @staticmethod
     def _box(handle: PWLocator) -> BoundingBox | None:
