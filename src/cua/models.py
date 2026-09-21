@@ -11,6 +11,11 @@ class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+# Shapes a captured value must match; declared once, shared by the outputs contract,
+# the goal spec and the extract checkpoints.
+SHAPES = {"nonempty": r".+", "money": r"-?\$-?\d+(?:\.\d+)?"}
+
+
 class LocatorCandidate(_Strict):
     # No css/xpath strategy on purpose: a target is a description, never a raw selector.
     strategy: Literal["role_name", "label", "text", "placeholder", "table_cell"]

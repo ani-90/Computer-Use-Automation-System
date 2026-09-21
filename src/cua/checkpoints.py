@@ -11,9 +11,8 @@ from typing import Literal
 from urllib.parse import urlparse
 
 from cua.adapter import Observation
-from cua.models import Condition, Locator
+from cua.models import SHAPES, Condition, Locator
 
-SHAPES = {"nonempty": r".+", "money": r"-?\$-?\d+(?:\.\d+)?"}
 _VOLATILE = re.compile(r"\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{1,2}:\d{2}")  # dates, times
 _ERROR_WORDS = ("error", "failed", "invalid", "not found", "denied")
 _STATIC = {"heading", "paragraph", "text"}  # table cells are data, never structure
