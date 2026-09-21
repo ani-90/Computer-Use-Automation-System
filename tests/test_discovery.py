@@ -16,7 +16,7 @@ from cua.discovery import DiscoveryConfig, run_discovery
 from cua.enums import StopReason
 from cua.evidence import EvidenceLogger, new_run_id
 from cua.goal import GoalSpec, TaggedValues
-from cua.llm import LLMResponse
+from cua.llm import LLMError, LLMResponse
 from cua.models import Locator, LocatorCandidate
 from cua.policy_gate import PolicyGate
 from cua.redaction import Redactor
@@ -337,6 +337,16 @@ def test_repeated_identical_failures_are_a_dead_end(tmp_path):
 def test_report_stuck_is_a_dead_end(tmp_path):
     result, *_ = run(tmp_path, [call("report_stuck", reasoning="no idea")])
     assert (result.stop_reason, result.detail) == (StopReason.DEAD_END, "report_stuck")
+
+
+def test_a_model_failure_ends_the_run_and_still_writes_the_result(tmp_path):
+    def broken(_site):
+        raise LLMError("APIConnectionError: down")
+
+    result, _, _, log = run(tmp_path, [broken])
+    assert result.stop_reason == StopReason.DEAD_END
+    assert result.detail == "llm_error: APIConnectionError: down"
+    assert (log.dir / "trace.json").exists() and (log.dir / "result.json").exists()
 
 
 def test_refusal_and_idle_replies_end_the_run(tmp_path):

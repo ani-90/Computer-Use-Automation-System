@@ -4,6 +4,10 @@ from dataclasses import dataclass
 from typing import Protocol
 
 
+class LLMError(Exception):
+    """The model call failed: network, API error, or missing credentials."""
+
+
 @dataclass(frozen=True)
 class LLMResponse:
     content: list[dict]  # blocks exactly as returned: thinking, text, tool_use

@@ -16,7 +16,7 @@ from cua.enums import StopReason, Verdict
 from cua.evidence import EvidenceLogger
 from cua.goal import GoalSpec, TaggedValues
 from cua.guard import ActionGuard
-from cua.llm import LLM, LLMResponse
+from cua.llm import LLM, LLMError, LLMResponse
 from cua.policy_gate import PolicyGate
 from cua.render import history_line, render_observation, strip_images, user_content
 from cua.tools import ActionError, AgentAction, parse_action, tool_definitions
@@ -137,7 +137,11 @@ class DiscoveryRun:
         while True:
             if self._timed_out():
                 return StopReason.TIMEOUT, None
-            response = self._ask()
+            try:
+                response = self._ask()
+            except LLMError as e:  # end cleanly so the trace and result are still written
+                self.logger.log("llm_error", error=str(e))
+                return StopReason.DEAD_END, f"llm_error: {e}"
             if response.stop_reason == "refusal":
                 return StopReason.DEAD_END, "model_refused"
             turn = _Turn(assistant=response.content)
