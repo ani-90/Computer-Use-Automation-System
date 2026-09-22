@@ -1,0 +1,13 @@
+{
+  "run_id": "c79a1471-22fb-4149-8c81-84ff7c946d5b",
+  "status": "POLICY_BLOCK",
+  "outputs": null,
+  "business_outcome": null,
+  "failure_detail": {
+    "step_index": 2,
+    "expected": "policy allow",
+    "observed": "amount exceeds approval threshold"
+  },
+  "escalations": [],
+  "llm_calls": 0
+}
