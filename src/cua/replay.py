@@ -3,9 +3,26 @@ escalation trigger (Phase 7: a supervisor approving an over-threshold amount), a
 classification (Phase 6): a known failure — a rejected login, an account missing from a
 dropdown — is looked up in error_mapping and reported as the real answer it is (BUSINESS_OUTCOME),
 not a generic crash; an unmatched failure gets one auth probe (navigate to a known-authenticated
-page) before being called a genuine HARD_FAILURE, in case it is only a session expiring. Recovery
-here means correct classification, not an automatic re-run from scratch: a caller who sees
-RECOVERABLE knows it is safe and cheap to just call replay() again.
+page) before being called a genuine HARD_FAILURE, in case it is only a session expiring. A session
+that is genuinely found expired this way (RECOVERABLE, business_outcome "session_expired") is now
+auto-recovered in place (Phase 8): the engine re-authenticates with the fixed service account and
+retries the one step that failed, at most once per run — no human is ever involved, and a caller
+never even sees RECOVERABLE for this path unless the retry itself also fails. Every other
+RECOVERABLE-adjacent outcome, and a HARD_FAILURE from the auth probe finding the session still
+genuinely authenticated, still means: correct classification only, safe and cheap for the caller
+to replay() again, not something the engine retries on its own.
+
+Retrying the same step only actually lands correctly when that step's page is reached again by
+nothing more than a fresh login — true for this capability's own first step (the Accounts
+Overview balance read, right where login lands) but not guaranteed for an expiry deeper into a
+multi-page flow, which would need to re-navigate back into the flow first. That's a real, known
+scope boundary, not an oversight: resuming mid-flow is not attempted here.
+
+Fault injection (`--inject-faults` only, Phase 8) makes the real app misbehave for real —
+`clear_session` deletes real cookies, `transient_fail` delays one real request without dropping
+it — so the step that follows fails for a genuine reason. Nothing in the classification or retry
+logic above is aware a fault was ever involved; the exact same code path handles a real,
+un-injected expiry or hiccup.
 
 The secondary escalation trigger (an ambiguous post-submit state) is Phase 9, a stretch goal —
 not here. With no `on_escalate` callback supplied, an ESCALATE verdict still falls back to
@@ -38,6 +55,7 @@ from cua.models import (
     Condition,
     Escalation,
     FailureDetail,
+    FaultInjection,
     Locator,
     LocatorCandidate,
     Outputs,
@@ -71,15 +89,13 @@ _LOG_IN = Locator(
         LocatorCandidate(strategy="text", value="Log In"),
     ],
 )
+_ACCOUNTS_OVERVIEW_HEADING = Locator(
+    description='heading "Accounts Overview"',
+    chain=[LocatorCandidate(strategy="role_name", role="heading", value="Accounts Overview")],
+)
 _LOGIN_CHECK = [
     Condition(kind="url_matches", value="/parabank/overview.htm"),
-    Condition(
-        kind="element_visible",
-        target=Locator(
-            description='heading "Accounts Overview"',
-            chain=[LocatorCandidate(strategy="role_name", role="heading", value="Accounts Overview")],
-        ),
-    ),
+    Condition(kind="element_visible", target=_ACCOUNTS_OVERVIEW_HEADING),
 ]
 # Confirmed live (scratch/probe_bad_login.py against the real site): a wrong password lands on
 # /parabank/login.htm with this exact paragraph — not a generic failure, a real answer.
@@ -105,14 +121,16 @@ class ReplayEngine:
     _steps: list[ReplayTraceStep] = field(default_factory=list, init=False, repr=False)
     _escalations: list[Escalation] = field(default_factory=list, init=False, repr=False)
     session_owner: SessionOwner = field(default=SessionOwner.AGENT, init=False)
+    _recovered_once: bool = field(default=False, init=False, repr=False)
 
     def replay(
         self, capability: Capability, params: Mapping[str, str], secrets: Mapping[str, str], start_url: str,
-        on_escalate: EscalateCallback | None = None,
+        on_escalate: EscalateCallback | None = None, fault: FaultInjection | None = None,
     ) -> ReplayResult:
         run_id = new_run_id()
         self._steps = []
         self._escalations = []
+        self._recovered_once = False
         self.session_owner = SessionOwner.AGENT
         problems = _validate_params(capability.inputs, params) + _validate_distinct(
             capability.distinct_inputs, params
@@ -140,14 +158,23 @@ class ReplayEngine:
 
         balance: Decimal | None = None
         collected: dict[str, str] = {}
-        for i, step in enumerate(capability.steps):
+        fault_applied = False
+        i = 0
+        while i < len(capability.steps):
+            step = capability.steps[i]
+            if fault is not None and not fault_applied and fault.step_index == i:
+                self._apply_fault(fault)
+                fault_applied = True
             obs = self.adapter.observe()
             precondition_status: Literal["ok", "failed", "n/a"] = "n/a" if not step.precondition else "ok"
             unmet = next((c for c in step.precondition if not evaluate(c, self.adapter, obs, params)), None)
             if unmet is not None:
                 self._record(i, "step", step, params, GateRecord(verdict=Verdict.ALLOW, reason="n/a"),
                              "failed", "n/a", "n/a", "error", f"precondition {unmet.kind} not met", obs.url, obs)
-                return self._finish(run_id, self._fail(run_id, Outcome.HARD_FAILURE, i, f"precondition {unmet.kind}", "not met"))
+                terminal = self._soften(i, step, self._fail(run_id, Outcome.HARD_FAILURE, i, f"precondition {unmet.kind}", "not met"))
+                if terminal is None:
+                    break
+                return self._finish(run_id, terminal)
 
             # The amount-vs-balance/threshold rules gate only the one step that actually moves
             # money — not the moment the amount is typed. This matches the design doc's own
@@ -161,16 +188,25 @@ class ReplayEngine:
             if decision.verdict == Verdict.BLOCK:
                 self._record(i, "step", step, params, gate_record, precondition_status, "n/a", "n/a",
                              "blocked", decision.reason, obs.url, obs)
-                return self._finish(run_id, self._fail(run_id, Outcome.POLICY_BLOCK, i, "policy allow", decision.reason))
+                terminal = self._soften(i, step, self._fail(run_id, Outcome.POLICY_BLOCK, i, "policy allow", decision.reason))
+                if terminal is None:
+                    break
+                return self._finish(run_id, terminal)
 
             human_did_it = False
             if decision.verdict == Verdict.ESCALATE:
                 if on_escalate is None:
                     self._record(i, "step", step, params, gate_record, precondition_status, "n/a", "n/a",
                                  "blocked", decision.reason, obs.url, obs)
-                    return self._finish(run_id, self._fail(run_id, Outcome.POLICY_BLOCK, i, "policy allow", decision.reason))
-                terminal = self._handle_escalation(run_id, i, step, params, decision, on_escalate)
-                if terminal is not None:
+                    terminal = self._soften(i, step, self._fail(run_id, Outcome.POLICY_BLOCK, i, "policy allow", decision.reason))
+                    if terminal is None:
+                        break
+                    return self._finish(run_id, terminal)
+                escalated = self._handle_escalation(run_id, i, step, params, decision, on_escalate)
+                if escalated is not None:
+                    terminal = self._soften(i, step, escalated)
+                    if terminal is None:
+                        break
                     return self._finish(run_id, terminal)
                 human_did_it = True  # approved, a click was genuinely captured
 
@@ -183,10 +219,16 @@ class ReplayEngine:
                 timeout_obs = self.adapter.observe()
                 self._record(i, "step", step, params, gate_record, precondition_status, "timed_out", "n/a",
                              "error", f"wait {step.wait_strategy.kind} timed out", timeout_obs.url, timeout_obs)
-                result = self._classified_failure(
-                    run_id, i, step, self._wait_condition(step.wait_strategy), f"wait {step.wait_strategy.kind}"
+                classified = self._handle_classified_failure(
+                    run_id, i, step, self._wait_condition(step.wait_strategy),
+                    f"wait {step.wait_strategy.kind}", secrets,
                 )
-                return self._finish(run_id, result)
+                if classified is None:
+                    continue  # recovered: retry this same step from the top
+                terminal = self._soften(i, step, classified)
+                if terminal is None:
+                    break
+                return self._finish(run_id, terminal)
             wait_status: Literal["ok", "timed_out", "n/a"] = "ok" if pre_wait else "n/a"
 
             if human_did_it:
@@ -198,16 +240,25 @@ class ReplayEngine:
                     error_obs = self.adapter.observe()
                     self._record(i, "step", step, params, gate_record, precondition_status, wait_status, "n/a",
                                  "error", str(e), error_obs.url, error_obs)
-                    return self._finish(run_id, self._fail(run_id, Outcome.HARD_FAILURE, i, "action succeeds", str(e)))
+                    terminal = self._soften(i, step, self._fail(run_id, Outcome.HARD_FAILURE, i, "action succeeds", str(e)))
+                    if terminal is None:
+                        break
+                    return self._finish(run_id, terminal)
 
             if not human_did_it and not pre_wait and not self._wait(step.wait_strategy, params):
                 timeout_obs = self.adapter.observe()
                 self._record(i, "step", step, params, gate_record, precondition_status, "timed_out", "n/a",
                              "error", f"wait {step.wait_strategy.kind} timed out", timeout_obs.url, timeout_obs)
-                result = self._classified_failure(
-                    run_id, i, step, self._wait_condition(step.wait_strategy), f"wait {step.wait_strategy.kind}"
+                classified = self._handle_classified_failure(
+                    run_id, i, step, self._wait_condition(step.wait_strategy),
+                    f"wait {step.wait_strategy.kind}", secrets,
                 )
-                return self._finish(run_id, result)
+                if classified is None:
+                    continue  # recovered: retry this same step from the top
+                terminal = self._soften(i, step, classified)
+                if terminal is None:
+                    break
+                return self._finish(run_id, terminal)
             wait_status = "ok"
 
             after = self.adapter.observe()
@@ -219,16 +270,26 @@ class ReplayEngine:
                     self._record(i, "step", step, params, gate_record, precondition_status, wait_status,
                                  checkpoint_status, "error", f"shape {shape} not met", after.url, after, extracted)
                     failed_shape = step.checkpoint[0] if step.checkpoint else None
-                    result = self._classified_failure(run_id, i, step, failed_shape, f"shape {shape}")
-                    return self._finish(run_id, result)
+                    classified = self._handle_classified_failure(run_id, i, step, failed_shape, f"shape {shape}", secrets)
+                    if classified is None:
+                        continue  # recovered: retry this same step from the top
+                    terminal = self._soften(i, step, classified)
+                    if terminal is None:
+                        break
+                    return self._finish(run_id, terminal)
             else:
                 failed = next((c for c in step.checkpoint if not evaluate(c, self.adapter, after, params)), None)
                 checkpoint_status = "n/a" if not step.checkpoint else ("failed" if failed else "ok")
                 if failed is not None:
                     self._record(i, "step", step, params, gate_record, precondition_status, wait_status,
                                  checkpoint_status, "error", f"checkpoint {failed.kind} not met", after.url, after)
-                    result = self._classified_failure(run_id, i, step, failed, f"checkpoint {failed.kind}")
-                    return self._finish(run_id, result)
+                    classified = self._handle_classified_failure(run_id, i, step, failed, f"checkpoint {failed.kind}", secrets)
+                    if classified is None:
+                        continue  # recovered: retry this same step from the top
+                    terminal = self._soften(i, step, classified)
+                    if terminal is None:
+                        break
+                    return self._finish(run_id, terminal)
 
             self._record(i, "step", step, params, gate_record, precondition_status, wait_status,
                          checkpoint_status, "ok", None, after.url, after, extracted)
@@ -237,6 +298,7 @@ class ReplayEngine:
                 balance = _parse_money(extracted)
             elif step.extract_as:
                 collected[step.extract_as] = extracted or ""
+            i += 1
 
         outputs = Outputs(
             confirmation_text=collected.get("confirmation_text", ""),
@@ -303,15 +365,17 @@ class ReplayEngine:
         return None
 
     def _probe_session(self) -> bool:
-        """True if still authenticated. Navigates to a known-authenticated page; landing there
-        for real means the failure was genuine, landing on the login page instead means the
-        session simply expired — the automation's own identity, not the caller's."""
+        """True if still authenticated. Navigates to a known-authenticated page and checks for
+        real content there — not the URL. Confirmed live: an unauthenticated request for this
+        app's own protected page is served via a server-side forward to a login/error screen
+        while the URL bar keeps reading the page that was asked for, so a URL-only check gets
+        fooled into reporting "still authenticated" on a session that has, in fact, expired."""
         try:
             before = self.adapter.observe().url
             self.adapter.navigate(urljoin(before, _OVERVIEW_PATH))
         except ActionFailed:
             return True  # can't tell from a failed navigation; don't claim expiry on a guess
-        return urlparse(self.adapter.observe().url).path == _OVERVIEW_PATH
+        return resolves(self.adapter, _ACCOUNTS_OVERVIEW_HEADING)
 
     def _wait_condition(self, ws: WaitStrategy) -> Condition | None:
         """The Condition an error_mapping entry would need to match, for a wait that timed out
@@ -331,6 +395,57 @@ class ReplayEngine:
         if self._probe_session():
             return self._fail(run_id, Outcome.HARD_FAILURE, i, expected, "not met")
         return self._outcome(run_id, Outcome.RECOVERABLE, business_outcome="session_expired")
+
+    def _handle_classified_failure(
+        self, run_id: str, i: int, step: Step, failed: Condition | None, expected: str,
+        secrets: Mapping[str, str],
+    ) -> ReplayResult | None:
+        """None means: a genuinely expired session was just auto re-authenticated — the caller
+        retries this same step now. Otherwise, the terminal result to return.
+
+        Retried at most once per run: a session that keeps expiring right after a fresh login is
+        not a transient blip, and the second failure — whatever it classifies as — is returned
+        as-is rather than looping. This is reached exactly the same way for a real, un-injected
+        expiry as for a fault-injected one; nothing here is aware of --inject-faults."""
+        result = self._classified_failure(run_id, i, step, failed, expected)
+        if (
+            result.status == Outcome.RECOVERABLE
+            and result.business_outcome == "session_expired"
+            and not self._recovered_once
+        ):
+            self._recovered_once = True
+            login_problem = self._login(run_id, secrets)
+            if login_problem is not None:
+                return login_problem
+            self._record(-1, "prelude", None, {}, None, "n/a", "n/a", "n/a", "recovered",
+                         "session re-authenticated after a genuine expiry; retrying the step",
+                         None, None, action="navigate", target_desc="session recovery")
+            return None
+        return result
+
+    def _soften(self, i: int, step: Step, result: ReplayResult) -> ReplayResult | None:
+        """None means: this step's own failure is fine to swallow — it's part of a best-effort
+        trailing lookup (transaction_id) whose own failure must never fail a run whose real work
+        (the transfer, new_balance) already succeeded. The caller abandons the rest of that
+        tail — breaks the loop rather than returning — and still finishes as SUCCESS with that
+        one output left unset, matching the documented contract: a failed or ambiguous match
+        yields None, never a crash and never a guessed ID. A SUCCESS result is never softened —
+        there is nothing to swallow."""
+        if not (step.best_effort and result.status != Outcome.SUCCESS):
+            return result
+        self._record(i, "step", None, {}, None, "n/a", "n/a", "n/a", "abandoned",
+                     f"best-effort lookup gave up: {result.status.value}", None, None,
+                     action=step.action, target_desc="(best-effort tail abandoned)")
+        return None
+
+    def _apply_fault(self, fault: FaultInjection) -> None:
+        """Phase 8, --inject-faults only. Makes the real app behave the way a genuine transient
+        network hiccup or a genuine session expiry would — the step that follows has no idea a
+        fault was ever involved, only that its wait/checkpoint failed for a real reason."""
+        if fault.fault_type == "clear_session":
+            self.adapter.clear_session()
+        elif fault.fault_type == "transient_fail":
+            self.adapter.delay_next_request(fault.url_pattern, fault.delay_ms)
 
     # -- steps ---------------------------------------------------------
 

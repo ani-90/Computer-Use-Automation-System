@@ -235,6 +235,13 @@ class FakeBank:
             raise LocatorNotFound(locator.description)
         raise LocatorNotFound(locator.description)
 
+    def exists(self, locator: Locator) -> bool:
+        try:
+            self.resolve(locator)
+            return True
+        except LocatorNotFound:
+            return False
+
     def act(self, handle: Handle, action) -> str | None:
         kind, key = handle.key
         if kind == "cell":
@@ -395,6 +402,40 @@ def test_a_missing_element_is_a_hard_failure_not_a_crash():
     result = ReplayEngine(fake, PolicyGate(Config())).replay(cap, PARAMS, SECRETS, BASE + "/index.htm")
     assert result.status == Outcome.HARD_FAILURE
     assert result.failure_detail.step_index == 1
+
+
+class NoMatchingTransactionBank(FakeBank):
+    """Find Transactions genuinely finds no matching row for the search — the simplest way to
+    exercise the best-effort degrade-to-None path (step 13's "Funds Transfer Sent" link is
+    simply never on the page), independent of the real ambiguous-match (ParaBank multi-row) case
+    that live testing found, which needs a real browser to reproduce."""
+
+    def _candidates(self) -> list[tuple]:
+        return [c for c in super()._candidates() if c[1] != "Funds Transfer Sent"]
+
+
+def test_a_failed_transaction_id_lookup_degrades_to_none_not_a_crash():
+    # transaction_id is documented as best-effort: None on a failed or ambiguous match, never a
+    # crash — the real transfer and new_balance already succeeded by the time this runs.
+    fake = NoMatchingTransactionBank()
+    result = ReplayEngine(fake, PolicyGate(Config(approval_threshold=Decimal(100)))).replay(
+        capability(), PARAMS, SECRETS, BASE + "/index.htm"
+    )
+    assert result.status == Outcome.SUCCESS
+    assert result.outputs.transaction_id is None
+    assert result.outputs.new_balance == "$1028.00"
+    assert fake.transferred  # the real work already happened; only the best-effort tail gave up
+
+
+def test_an_early_non_best_effort_step_still_hard_fails_best_effort_never_leaks_backward():
+    fake = FakeBank()
+    cap = capability()
+    # corrupt the Transfer Funds link itself (step 1, long before best_effort starts at step 9)
+    cap.steps[1] = cap.steps[1].model_copy(update={"target": loc('link "Nonexistent"')})
+    result = ReplayEngine(fake, PolicyGate(Config())).replay(cap, PARAMS, SECRETS, BASE + "/index.htm")
+    assert result.status == Outcome.HARD_FAILURE
+    assert result.failure_detail.step_index == 1
+    assert not fake.transferred
 
 
 def test_run_id_is_a_real_uuid_and_unique_per_run():

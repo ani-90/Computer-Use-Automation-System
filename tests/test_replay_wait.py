@@ -99,6 +99,13 @@ class SlowDropdownBank:
             return Handle("combobox")
         return self._raise(locator)
 
+    def exists(self, locator: Locator) -> bool:
+        try:
+            self.resolve(locator)
+            return True
+        except LocatorNotFound:
+            return False
+
     @staticmethod
     def _raise(locator):
         raise LocatorNotFound(locator.description)

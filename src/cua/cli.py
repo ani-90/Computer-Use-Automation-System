@@ -31,6 +31,17 @@ def _parser() -> argparse.ArgumentParser:
         help="only used for the start URL and secret env-var names, never the prompt or steps",
     )
     replay.add_argument("--param", action="append", default=[], metavar="NAME=VALUE")
+    replay.add_argument(
+        "--inject-faults", action="store_true",
+        help="required before any --fault-* flag has any effect; never set by a normal run",
+    )
+    replay.add_argument("--fault-step", type=int, default=None, metavar="INDEX")
+    replay.add_argument("--fault-type", choices=["transient_fail", "clear_session"], default=None)
+    replay.add_argument(
+        "--fault-url-pattern", default=None, metavar="GLOB",
+        help="transient_fail only: which request to delay (Playwright glob pattern)",
+    )
+    replay.add_argument("--fault-delay-ms", type=int, default=3000)
     return parser
 
 
@@ -113,7 +124,23 @@ def _run_live(
     return 0 if result.stop_reason == StopReason.SUCCESS else 1
 
 
-def _run_replay(capability_path: str, goal_path: str, raw_params: list[str]) -> int:
+def _build_fault(args: argparse.Namespace):
+    from cua.models import FaultInjection
+
+    given = args.fault_step is not None or args.fault_type is not None
+    if not args.inject_faults:
+        if given:
+            raise ValueError("--fault-step/--fault-type require --inject-faults")
+        return None
+    if args.fault_step is None or args.fault_type is None:
+        raise ValueError("--inject-faults requires both --fault-step and --fault-type")
+    return FaultInjection(
+        step_index=args.fault_step, fault_type=args.fault_type,
+        url_pattern=args.fault_url_pattern, delay_ms=args.fault_delay_ms,
+    )
+
+
+def _run_replay(capability_path: str, goal_path: str, raw_params: list[str], fault=None) -> int:
     # Imported here so tests and --dry-run never load the browser.
     from cua.adapter import PlaywrightAdapter
     from cua.config import Config
@@ -142,6 +169,8 @@ def _run_replay(capability_path: str, goal_path: str, raw_params: list[str]) -> 
     logger = EvidenceLogger(new_run_id(), redactor, base_dir=Path("evidence") / "replay")
     print("LIVE REPLAY: no LLM is called; this may move money in the sandbox.")
     print(f"evidence: {logger.dir}")
+    if fault is not None:
+        print(f"FAULT INJECTION ACTIVE: {fault.fault_type} at step {fault.step_index}")
 
     def on_escalate(ticket):
         print(f"\n=== ESCALATION: {ticket.reason} ===")
@@ -153,7 +182,7 @@ def _run_replay(capability_path: str, goal_path: str, raw_params: list[str]) -> 
 
     with PlaywrightAdapter(config, logger, secrets=list(secrets.values())) as adapter:
         result = ReplayEngine(adapter, PolicyGate(config), logger).replay(
-            capability, params, secrets, start_url, on_escalate
+            capability, params, secrets, start_url, on_escalate, fault
         )
     summary = redactor.redact(result.model_dump(mode="json"))
     print(f"\nstatus: {summary['status']}")
@@ -176,7 +205,12 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     load_dotenv()
     if args.command == "replay":
-        return _run_replay(args.capability, args.goal, args.param)
+        try:
+            fault = _build_fault(args)
+        except (ValueError, TypeError) as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
+        return _run_replay(args.capability, args.goal, args.param, fault)
     try:
         spec = GoalSpec.model_validate_json(Path(args.goal).read_text(encoding="utf-8"))
         params = parse_params(spec, _pairs(args.param))

@@ -106,6 +106,11 @@ class Step(_Strict):
     # amount is set — the one action that actually moves money. Not every click that happens to
     # follow the amount being typed (e.g. a later read-only search reusing the same value).
     is_submission: bool = False
+    # True for every step that only ever feeds transaction_id — a read-only lookup that runs
+    # after the real transfer and new_balance have already succeeded. Its own failure must never
+    # fail the whole run: transaction_id is documented as best-effort, None on a failed or
+    # ambiguous match, never a guessed ID (see CLAUDE.md / review_checklist_4.md section 5).
+    best_effort: bool = False
 
 
 class ParamSpec(_Strict):
@@ -148,6 +153,24 @@ class Escalation(_Strict):
     status: Literal["open", "resolved"] = "open"
     decision: Literal["approve", "reject", "complete", "retry_step", "abort"] | None = None
     captured_human_actions: list[dict[str, str]] = Field(default_factory=list)
+
+
+class FaultInjection(_Strict):
+    """Phase 8, `--inject-faults` only. Never constructed on a normal replay() call — the CLI is
+    the only place one is ever built, and only when the flag is explicitly given."""
+
+    step_index: int
+    fault_type: Literal["transient_fail", "clear_session"]
+    # transient_fail: a URL pattern (glob, as Playwright's page.route expects) whose next
+    # matching request is delayed, not dropped. Required only for transient_fail.
+    url_pattern: str | None = None
+    delay_ms: int = 3000
+
+    @model_validator(mode="after")
+    def _check_fields(self) -> Self:
+        if self.fault_type == "transient_fail" and not self.url_pattern:
+            raise ValueError("transient_fail requires url_pattern")
+        return self
 
 
 class ReplayResult(_Strict):

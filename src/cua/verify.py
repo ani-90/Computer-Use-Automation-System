@@ -11,7 +11,7 @@ import re
 from collections.abc import Mapping
 from urllib.parse import urlparse
 
-from cua.adapter import LocatorNotFound, Observation
+from cua.adapter import Observation
 from cua.models import SHAPES, Condition, Locator, LocatorCandidate
 
 
@@ -47,11 +47,10 @@ def render_condition(cond: Condition, params: Mapping[str, str]) -> Condition:
 
 
 def resolves(adapter, locator: Locator) -> bool:
-    try:
-        adapter.resolve(locator)
-    except LocatorNotFound:
-        return False
-    return True
+    # adapter.exists(), not adapter.resolve(): an existence check must not fail just because more
+    # than one match exists — resolve()'s exactly-one rule is for picking a single action target,
+    # a different question from "is this on the page".
+    return adapter.exists(locator)
 
 
 def _visible_text(obs: Observation) -> str:

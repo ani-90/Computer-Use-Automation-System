@@ -58,7 +58,13 @@ class ReplayTraceStep(_Model):
     precondition_status: Literal["ok", "failed", "n/a"] = "n/a"
     wait_status: Literal["ok", "timed_out", "n/a"] = "n/a"
     checkpoint_status: Literal["ok", "failed", "n/a"] = "n/a"
-    result: Literal["ok", "blocked", "error"]
+    # "recovered": Phase 8 — a genuinely expired session was auto re-authenticated mid-run, and
+    # the step that failed because of it is about to be retried. Not a fault-specific marker: the
+    # exact same event a real, un-injected session expiry would produce.
+    # "abandoned": a best-effort trailing lookup (transaction_id) failed and the run is finishing
+    # as SUCCESS anyway, with that output left unset — the step's own "error" record above this
+    # one already shows what actually failed; this just marks that it was allowed to fail.
+    result: Literal["ok", "blocked", "error", "recovered", "abandoned"]
     error: str | None = None
     url_after: str | None = None
     screenshot: str | None = None

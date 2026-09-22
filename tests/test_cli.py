@@ -127,6 +127,83 @@ def test_replay_prints_business_outcome_when_present(monkeypatch, capsys):
     assert "business_outcome: invalid_account" in out
 
 
+def test_fault_flags_without_inject_faults_are_refused(monkeypatch, capsys):
+    set_env(monkeypatch)
+    started = []
+    monkeypatch.setattr("cua.cli._run_replay", lambda *args: started.append(args) or 0)
+    code = main(["replay", "--goal", SPEC_PATH, "--capability", CAP_PATH, *PARAMS,
+                 "--fault-step", "0", "--fault-type", "clear_session"])
+    assert code == 2
+    assert "--inject-faults" in capsys.readouterr().err
+    assert started == []  # nothing was dispatched
+
+
+def test_inject_faults_without_both_step_and_type_is_refused(monkeypatch, capsys):
+    set_env(monkeypatch)
+    started = []
+    monkeypatch.setattr("cua.cli._run_replay", lambda *args: started.append(args) or 0)
+    code = main(["replay", "--goal", SPEC_PATH, "--capability", CAP_PATH, *PARAMS, "--inject-faults"])
+    assert code == 2
+    assert "--inject-faults" in capsys.readouterr().err
+    assert started == []
+
+
+def test_transient_fail_without_url_pattern_is_refused(monkeypatch, capsys):
+    set_env(monkeypatch)
+    started = []
+    monkeypatch.setattr("cua.cli._run_replay", lambda *args: started.append(args) or 0)
+    code = main(["replay", "--goal", SPEC_PATH, "--capability", CAP_PATH, *PARAMS,
+                 "--inject-faults", "--fault-step", "3", "--fault-type", "transient_fail"])
+    assert code == 2
+    assert started == []
+
+
+def test_a_normal_replay_call_never_constructs_a_fault(monkeypatch):
+    # Grep-able proof at the code level, exercised here: the only place a FaultInjection is ever
+    # built is _build_fault, and it is only reached from main() on the replay subcommand — a
+    # normal invocation with none of the --fault-* flags passes fault=None through.
+    set_env(monkeypatch)
+    calls = []
+    monkeypatch.setattr("cua.cli._run_replay", lambda *args: calls.append(args) or 0)
+    assert main(["replay", "--goal", SPEC_PATH, "--capability", CAP_PATH, *PARAMS]) == 0
+    _cap_path, _goal_path, _params, fault = calls[0]
+    assert fault is None
+
+
+def test_a_valid_fault_combination_is_passed_through_to_replay(monkeypatch):
+    set_env(monkeypatch)
+    monkeypatch.setattr("cua.adapter.PlaywrightAdapter.start", lambda _self: None)
+    monkeypatch.setattr("cua.adapter.PlaywrightAdapter.close", lambda _self: None)
+    captured = {}
+
+    class FakeResult:
+        run_id = "x"
+        status = Outcome.SUCCESS
+        llm_calls = 0
+        failure_detail = None
+        outputs = Outputs(confirmation_text="ok")
+
+        def model_dump(self, mode="json"):
+            return {
+                "run_id": self.run_id, "status": self.status.value, "llm_calls": self.llm_calls,
+                "failure_detail": None, "business_outcome": None,
+                "outputs": {"confirmation_text": "ok", "new_balance": None, "transaction_id": None},
+                "escalations": [],
+            }
+
+    def fake_replay(self, capability, params, secrets, start_url, on_escalate=None, fault=None):
+        captured["fault"] = fault
+        return FakeResult()
+
+    monkeypatch.setattr("cua.replay.ReplayEngine.replay", fake_replay)
+    code = main(["replay", "--goal", SPEC_PATH, "--capability", CAP_PATH, *PARAMS,
+                 "--inject-faults", "--fault-step", "3", "--fault-type", "transient_fail",
+                 "--fault-url-pattern", "**/transfer.htm", "--fault-delay-ms", "1500"])
+    assert code == 0
+    fault = captured["fault"]
+    assert (fault.step_index, fault.fault_type, fault.url_pattern, fault.delay_ms) == (3, "transient_fail", "**/transfer.htm", 1500)
+
+
 def test_a_live_run_without_credentials_stops_before_a_browser_opens(monkeypatch, capsys):
     set_env(monkeypatch)
 

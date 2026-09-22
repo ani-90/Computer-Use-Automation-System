@@ -87,6 +87,8 @@ def compile_capability(result: DiscoveryResult, spec: GoalSpec) -> Capability:
         prev_checkpoint = ts.checkpoint
         prev_url = ts.url_after
 
+    steps = _finalize_transaction_lookup(steps)
+
     return Capability(
         schema_version="1.0",
         version="1",
@@ -100,6 +102,37 @@ def compile_capability(result: DiscoveryResult, spec: GoalSpec) -> Capability:
         amount_input=spec.amount_input,
         distinct_inputs=spec.distinct_inputs,
         steps=steps,
+    )
+
+
+def _finalize_transaction_lookup(steps: list[Step]) -> list[Step]:
+    """Everything after new_balance is a read-only transaction_id lookup, documented as
+    best-effort (CLAUDE.md / review_checklist_4.md section 5): its own failure must never fail a
+    run whose real work — the transfer, new_balance — has already succeeded, and the step that
+    opens the matching transaction must deterministically pick the newest one when more than one
+    share the same amount, rather than fail on the ambiguity. Confirmed live (recon-notes.md):
+    Find Transactions lists results oldest-first, so the newest match is always the last row.
+    """
+    idx = next((i for i, s in enumerate(steps) if s.extract_as == "new_balance"), None)
+    if idx is None:
+        return steps
+    out = list(steps[: idx + 1])
+    for i in range(idx + 1, len(steps)):
+        s = steps[i].model_copy(update={"best_effort": True})
+        opens_the_match = i + 1 < len(steps) and steps[i + 1].extract_as == "transaction_id"
+        if opens_the_match:
+            s = s.model_copy(update={"target": _pick_last_match(s.target)})
+        out.append(s)
+    return out
+
+
+def _pick_last_match(target: Locator) -> Locator:
+    return Locator(
+        description=target.description,
+        chain=[
+            LocatorCandidate(strategy=c.strategy, value=c.value, role=c.role, nth=-1, column=c.column, col=c.col)
+            for c in target.chain
+        ],
     )
 
 

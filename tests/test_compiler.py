@@ -10,10 +10,10 @@ from pathlib import Path
 
 import pytest
 
-from cua.compiler import CompileError, compile_capability
+from cua.compiler import CompileError, _finalize_transaction_lookup, compile_capability
 from cua.enums import Outcome, StopReason
 from cua.goal import GoalSpec
-from cua.models import Condition, Locator, LocatorCandidate
+from cua.models import Condition, Locator, LocatorCandidate, Step, WaitStrategy
 from cua.trace import DiscoveryResult, TraceStep
 
 SPEC_PATH = Path(__file__).resolve().parent.parent / "goals" / "transfer_funds.json"
@@ -325,3 +325,43 @@ def test_inputs_contract_matches_the_goal_spec_and_excludes_credentials():
 def test_distinct_inputs_is_carried_from_the_goal_spec():
     cap = compiled()
     assert cap.distinct_inputs == [["from_account", "to_account"]]
+
+
+def _bare_step(action: str, extract_as=None) -> Step:
+    target = named(action if action != "click" else "link", "x")
+    return Step(
+        precondition=[], action=action, target=target, parameters={},
+        wait_strategy=WaitStrategy(kind="network_idle"), checkpoint=[], error_mapping=[],
+        extract_as=extract_as,
+    )
+
+
+def test_everything_after_new_balance_is_marked_best_effort_and_earlier_steps_are_not():
+    steps = [
+        _bare_step("click"), _bare_step("extract", extract_as="new_balance"),
+        _bare_step("click"), _bare_step("click"), _bare_step("extract", extract_as="transaction_id"),
+    ]
+    out = _finalize_transaction_lookup(steps)
+    assert [s.best_effort for s in out] == [False, False, True, True, True]
+
+
+def test_the_step_that_opens_the_match_gets_nth_minus_one_others_do_not():
+    # Only the step immediately before the transaction_id extract is "opening the match" — the
+    # newest-row rule (recon-notes.md: results list oldest-first) applies there, not to every
+    # best-effort step in the tail.
+    steps = [
+        _bare_step("extract", extract_as="new_balance"),
+        _bare_step("click"),  # e.g. "Find Transactions" — not the one opening the match
+        _bare_step("click"),  # e.g. "Funds Transfer Sent" — this one is
+        _bare_step("extract", extract_as="transaction_id"),
+    ]
+    out = _finalize_transaction_lookup(steps)
+    assert all(c.nth is None for c in out[1].target.chain)
+    assert all(c.nth == -1 for c in out[2].target.chain)
+
+
+def test_a_trace_with_no_new_balance_extract_is_left_untouched():
+    steps = [_bare_step("click"), _bare_step("extract", extract_as="transaction_id")]
+    out = _finalize_transaction_lookup(steps)
+    assert out == steps
+    assert all(not s.best_effort for s in out)

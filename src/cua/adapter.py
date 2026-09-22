@@ -187,6 +187,14 @@ def _parse_texts(lines: list[str], first_index: int) -> list[TextNode]:
     return nodes
 
 
+def _apply_nth(loc: PWLocator, nth: int) -> PWLocator:
+    # LocatorCandidate.nth documents -1 as "the last match" — Playwright's own .nth() is
+    # zero-based only (confirmed against its docstring, not just assumed) and does not accept a
+    # negative index the way Python indexing does; .last is the real, documented way to select
+    # it. Every non-negative value still goes through .nth() unchanged.
+    return loc.last if nth == -1 else loc.nth(nth)
+
+
 def _should_mask(shown: str, pattern: str | None, secrets: Collection[str]) -> bool:
     """Whether a form control's visible value must be hidden in a saved screenshot."""
     if not shown:
@@ -241,6 +249,42 @@ class PlaywrightAdapter:
         actions = page.evaluate("JSON.parse(sessionStorage.getItem('__cua_actions') || '[]')")
         page.evaluate("sessionStorage.setItem('__cua_actions', '[]')")
         return actions
+
+    # -- fault injection (Phase 8, --inject-faults only) ---------------------
+    # Two more deliberate verbs beyond the original four, same justification as
+    # set_session_owner/captured_actions above: real fault injection needs real browser-context
+    # control, which only this file is allowed to touch. Never called by a normal replay.
+
+    def clear_session(self) -> None:
+        """Genuinely invalidate the session — real cookie deletion, not a faked redirect. The
+        next request the app itself makes decides what happens next, exactly like a real expiry."""
+        context = self._require_context()
+        context.clear_cookies()
+
+    def delay_next_request(self, url_pattern: str, delay_ms: int) -> None:
+        """Let exactly one matching request complete for real, just late. Unlike drop_response
+        (Phase 9), the request is never aborted — this only makes the real wait_strategy poll
+        loop retry against genuine latency, not a special-cased branch standing in for it.
+
+        A route handler must call nothing but route.continue_()/abort() on itself — calling any
+        other page-level sync method (page.wait_for_timeout, page.unroute) from inside it
+        re-enters Playwright's sync dispatch loop and corrupts the route's own state ("Route is
+        already handled"), confirmed live. A plain time.sleep() blocks only this handler, and
+        "already used" is tracked with a closure flag instead of ever calling page.unroute here.
+        """
+        page = self._require_page()
+        used = False
+
+        def _handler(route) -> None:
+            nonlocal used
+            if used:
+                route.continue_()
+                return
+            used = True
+            time.sleep(delay_ms / 1000)
+            route.continue_()
+
+        page.route(url_pattern, _handler)
 
     def __enter__(self) -> Self:
         self.start()
@@ -319,6 +363,18 @@ class PlaywrightAdapter:
             )
         raise LocatorNotFound(locator.description)
 
+    def exists(self, locator: Locator) -> bool:
+        """Whether the locator has one-or-more visible matches — existence, for element_visible/
+        element_absent, never a target to act on. resolve() must keep its exactly-one rule (an
+        ambiguous action target has to fail loudly); this is a separate, narrower verb, because a
+        real page can legitimately show the same content more than once — e.g. two past
+        transactions sharing an identical description — without that meaning the element a
+        checkpoint is looking for genuinely isn't there. Confirmed live: a checkpoint wrongly
+        failed on exactly this after two same-amount test transfers landed both descriptions on
+        one results page."""
+        page = self._require_page()
+        return any(self._visible_indices(self._build(page, cand)) for cand in locator.chain)
+
     @staticmethod
     def _visible_indices(handle: PWLocator) -> list[int]:
         return [i for i in range(handle.count()) if handle.nth(i).is_visible()]
@@ -378,6 +434,11 @@ class PlaywrightAdapter:
         if self._page is None:
             raise RuntimeError("adapter not started")
         return self._page
+
+    def _require_context(self) -> BrowserContext:
+        if self._context is None:
+            raise RuntimeError("adapter not started")
+        return self._context
 
     def _log(self, event: str, **data: object) -> None:
         if self._logger:
@@ -464,7 +525,7 @@ class PlaywrightAdapter:
                     has=page.get_by_role("cell", name=cand.value, exact=True)
                 )
                 if cand.nth is not None:
-                    rows = rows.nth(cand.nth)
+                    rows = _apply_nth(rows, cand.nth)
                 if cand.column is None:
                     return rows.get_by_role("cell").nth(cand.col)
                 header = page.get_by_role("columnheader", name=cand.column, exact=True)
@@ -472,7 +533,7 @@ class PlaywrightAdapter:
                     return header  # resolve() reports the miss
                 pos = header.evaluate("e => Array.from(e.parentElement.children).indexOf(e)")
                 return rows.get_by_role("cell").nth(pos)
-        return loc if cand.nth is None else loc.nth(cand.nth)
+        return loc if cand.nth is None else _apply_nth(loc, cand.nth)
 
     @staticmethod
     def _box(handle: PWLocator) -> BoundingBox | None:

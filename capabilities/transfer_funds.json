@@ -1306,7 +1306,8 @@
         }
       ],
       "error_mapping": [],
-      "is_submission": false
+      "is_submission": false,
+      "best_effort": true
     },
     {
       "precondition": [
@@ -1422,7 +1423,8 @@
         }
       ],
       "error_mapping": [],
-      "is_submission": false
+      "is_submission": false,
+      "best_effort": true
     },
     {
       "precondition": [
@@ -1521,7 +1523,8 @@
           "detail": "invalid_account"
         }
       ],
-      "is_submission": false
+      "is_submission": false,
+      "best_effort": true
     },
     {
       "precondition": [
@@ -1672,7 +1675,8 @@
         }
       ],
       "error_mapping": [],
-      "is_submission": false
+      "is_submission": false,
+      "best_effort": true
     },
     {
       "precondition": [
@@ -1761,7 +1765,7 @@
             "strategy": "role_name",
             "value": "Funds Transfer Sent",
             "role": "link",
-            "nth": null,
+            "nth": -1,
             "column": null,
             "col": null
           },
@@ -1769,7 +1773,7 @@
             "strategy": "text",
             "value": "Funds Transfer Sent",
             "role": null,
-            "nth": null,
+            "nth": -1,
             "column": null,
             "col": null
           }
@@ -1807,7 +1811,8 @@
         }
       ],
       "error_mapping": [],
-      "is_submission": false
+      "is_submission": false,
+      "best_effort": true
     },
     {
       "precondition": [
@@ -1888,7 +1893,8 @@
       ],
       "error_mapping": [],
       "extract_as": "transaction_id",
-      "is_submission": false
+      "is_submission": false,
+      "best_effort": true
     }
   ],
   "amount_input": "amount",

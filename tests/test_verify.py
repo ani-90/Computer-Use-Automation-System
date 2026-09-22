@@ -26,6 +26,9 @@ class FakeAdapter:
             return object()
         raise LocatorNotFound(locator.description)
 
+    def exists(self, locator: Locator) -> bool:
+        return locator.description in self.resolvable
+
 
 def test_render_substitutes_every_param_once():
     assert render("{{amount}} to {{from_account}}", {"amount": "5", "from_account": "A"}) == "5 to A"
