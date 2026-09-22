@@ -98,6 +98,10 @@ class Step(_Strict):
     wait_strategy: WaitStrategy
     checkpoint: list[Condition] = Field(default_factory=list)
     error_mapping: list[ErrorMapping]
+    # Only for action="extract": which capability output this fills, or the policy-only
+    # balance read (never a declared output). None for every other action and for an extract
+    # whose value isn't kept at all.
+    extract_as: Literal["confirmation_text", "new_balance", "transaction_id", "policy_balance"] | None = None
 
 
 class ParamSpec(_Strict):
@@ -111,6 +115,12 @@ class Capability(_Strict):
     name: str
     inputs: dict[str, ParamSpec]
     outputs: dict[str, ParamSpec]
+    # Which declared input the Policy Gate's amount rules apply to. None if this capability
+    # never moves money (not every capability needs it, so it's optional, not assumed).
+    amount_input: str | None = None
+    # Groups of inputs that must differ (e.g. from_account and to_account) — checked before the
+    # browser is touched, same as Discovery's own parameter validation.
+    distinct_inputs: list[list[str]] = Field(default_factory=list)
     steps: list[Step]
 
 
@@ -143,3 +153,4 @@ class ReplayResult(_Strict):
     business_outcome: str | None = None
     failure_detail: FailureDetail | None = None
     escalations: list[Escalation] = Field(default_factory=list)
+    llm_calls: int = 0  # always 0: computed, never set by anything, never hardcoded elsewhere

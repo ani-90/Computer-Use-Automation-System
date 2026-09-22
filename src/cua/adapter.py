@@ -253,11 +253,16 @@ class PlaywrightAdapter:
         )
 
     def resolve(self, locator: Locator) -> ResolvedElement:
+        # Only visible matches count. A raw DOM count would also match a hidden leftover (e.g.
+        # the transfer form ParaBank hides, rather than removes, once the confirmation shows) —
+        # role-based matching already excludes it via the accessibility tree, but a plain text
+        # match does not, so both must be filtered the same way for element_visible/absent to
+        # agree with what the accessibility-snapshot-based checkpoint was derived against.
         page = self._require_page()
         for rank, cand in enumerate(locator.chain):
             handle = self._build(page, cand)
-            count = handle.count()
-            if count == 1:
+            visible = self._visible_indices(handle)
+            if len(visible) == 1:
                 if rank > 0:  # fell past the primary role+name candidate
                     self._log(
                         "locator_fallback",
@@ -265,15 +270,19 @@ class PlaywrightAdapter:
                         rank=rank,
                         strategy=cand.strategy,
                     )
-                return ResolvedElement(handle, locator.description)
+                return ResolvedElement(handle.nth(visible[0]), locator.description)
             self._log(
                 "locator_miss",
                 description=locator.description,
                 rank=rank,
                 strategy=cand.strategy,
-                matches=count,
+                matches=len(visible),
             )
         raise LocatorNotFound(locator.description)
+
+    @staticmethod
+    def _visible_indices(handle: PWLocator) -> list[int]:
+        return [i for i in range(handle.count()) if handle.nth(i).is_visible()]
 
     def act(self, element: ResolvedElement, action: Action) -> str | None:
         # Typed values are never logged: the password passes through here.

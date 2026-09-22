@@ -1,9 +1,12 @@
 from pathlib import Path
 
 from cua.cli import main
+from cua.enums import Outcome
 from cua.llm import LLMError
+from cua.models import Outputs
 
 SPEC_PATH = str(Path(__file__).resolve().parent.parent / "goals" / "transfer_funds.json")
+CAP_PATH = str(Path(__file__).resolve().parent.parent / "capabilities" / "transfer_funds.json")
 PARAMS = ["--param", "from_account=acct-a", "--param", "to_account=acct-b", "--param", "amount=5"]
 
 
@@ -57,6 +60,42 @@ def test_a_real_run_starts_the_live_path_with_the_parsed_arguments(monkeypatch):
     assert params["amount"] == "5" and start_url == "http://h/p/index.htm"
     assert (max_steps, timeout, capability_out) == (2, 20.0, None)
     assert tagged.secrets["password"] == "svc-pass-x"
+
+
+def test_replay_output_is_redacted_before_printing(monkeypatch, capsys):
+    # Regression: a live replay once printed real account numbers straight to the terminal —
+    # discover's output was redacted, replay's was not.
+    set_env(monkeypatch)
+    monkeypatch.setattr("cua.adapter.PlaywrightAdapter.start", lambda _self: None)
+    monkeypatch.setattr("cua.adapter.PlaywrightAdapter.close", lambda _self: None)
+
+    class FakeResult:
+        run_id = "x"
+        status = Outcome.SUCCESS
+        llm_calls = 0
+        failure_detail = None
+        outputs = Outputs(
+            confirmation_text="$5.00 has been transferred from account #12345 to account #67890.",
+            new_balance="$100.00", transaction_id="998877",
+        )
+
+        def model_dump(self, mode="json"):
+            return {
+                "run_id": self.run_id, "status": self.status.value, "llm_calls": self.llm_calls,
+                "failure_detail": self.failure_detail,
+                "outputs": {
+                    "confirmation_text": self.outputs.confirmation_text,
+                    "new_balance": self.outputs.new_balance, "transaction_id": self.outputs.transaction_id,
+                },
+                "escalations": [],
+            }
+
+    monkeypatch.setattr("cua.replay.ReplayEngine.replay", lambda self, *a, **k: FakeResult())
+    code = main(["replay", "--goal", SPEC_PATH, "--capability", CAP_PATH, *PARAMS])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "12345" not in out and "67890" not in out and "998877" not in out
+    assert "[REDACTED]" in out
 
 
 def test_a_live_run_without_credentials_stops_before_a_browser_opens(monkeypatch, capsys):

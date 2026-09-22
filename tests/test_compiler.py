@@ -197,6 +197,34 @@ def test_the_confirmation_sentence_is_parameterized_as_a_substring():
     assert "{{from_account}}" in sentence_cond.target.description
     assert "{{to_account}}" in sentence_cond.target.description
     assert "{{amount}}" in sentence_cond.target.description
+    # exact: the ".00" ParaBank itself appends must survive the substitution untouched
+    assert sentence_cond.target.description == (
+        'text "${{amount}}.00 has been transferred from account #{{from_account}} '
+        'to account #{{to_account}}."'
+    )
+
+
+def test_a_parameter_typed_in_two_different_literal_forms_does_not_swallow_page_formatting():
+    # Regression: the real agent typed "11" on the Transfer page but "11.00" on the Find
+    # Transactions page for the same amount (both correctly tagged, Decimal("11")==Decimal
+    # ("11.00")). Substituting the longer "11.00" variant against ParaBank's OWN "$11.00"
+    # elsewhere ate the ".00" along with it, breaking the compiled locator for every other
+    # amount at replay time. Only the shortest variant per parameter may be used.
+    trace = build_trace()
+    second_typing = ts(
+        18, tool="type", provenance="parameter", param="amount", value=f"{AMOUNT}.00",
+        target=named("textbox", "Find by Amount:"),
+        checkpoint=[Condition(
+            kind="field_value_equals", target=named("textbox", "Find by Amount:"), value="{{amount}}",
+        )],
+    )
+    trace.insert(-1, second_typing)  # anywhere before report_done; position doesn't matter here
+    result = DiscoveryResult(run_id="y", stop_reason=StopReason.SUCCESS, steps=trace)
+    cap = compile_capability(result, spec())
+    submit = _submit(cap)
+    sentence_cond = next(c for c in submit.checkpoint if "has been transferred" in (c.target.description or ""))
+    assert ".00 has been transferred" in sentence_cond.target.description
+    assert AMOUNT not in sentence_cond.target.description.replace("{{amount}}", "")
 
 
 def test_checkpoint_keeps_every_verified_condition_all_of():
@@ -220,6 +248,20 @@ def test_submit_precondition_unions_the_fields_entered_since_the_last_navigation
     assert ("option_selected", "{{to_account}}") in kinds
 
 
+def test_field_state_does_not_leak_past_an_in_page_submit_with_no_url_change():
+    # Regression: the real Transfer submission is an in-page AJAX swap — no URL change — that
+    # hides the very fields since_nav was tracking (Amount, From, To). Without a reset here, the
+    # NEXT step's precondition would wrongly assert those fields still hold, and fail at replay
+    # time since they're gone from the page the moment the confirmation shows.
+    cap = compiled()
+    submit = _submit(cap)
+    after_submit = cap.steps[cap.steps.index(submit) + 1]
+    assert after_submit.action == "extract" and after_submit.extract_as == "confirmation_text"
+    kinds = {c.kind for c in after_submit.precondition}
+    assert "field_value_equals" not in kinds
+    assert "option_selected" not in kinds
+
+
 def test_select_steps_get_an_option_present_wait_strategy():
     cap = compiled()
     select_steps = [s for s in cap.steps if s.action == "select"]
@@ -240,3 +282,8 @@ def test_outputs_contract_excludes_policy_only_extracts():
 def test_inputs_contract_matches_the_goal_spec_and_excludes_credentials():
     cap = compiled()
     assert set(cap.inputs) == {"from_account", "to_account", "amount"}
+
+
+def test_distinct_inputs_is_carried_from_the_goal_spec():
+    cap = compiled()
+    assert cap.distinct_inputs == [["from_account", "to_account"]]

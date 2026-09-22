@@ -45,6 +45,33 @@ class TraceStep(_Model):
         return self
 
 
+class ReplayTraceStep(_Model):
+    """One record per replay step, written to evidence/<run_id>/trace.json — the Replay
+    counterpart to TraceStep, so a replay run is exactly as inspectable as a discovery run."""
+
+    step_no: int  # -1 for the login prelude's own steps
+    phase: Literal["prelude", "step"]
+    action: Literal["click", "type", "select", "navigate", "extract"]
+    target: str  # the rendered locator description (redacted at write time like everything else)
+    value: str | None = None  # an extract's own value; never a secret (prelude never logs one)
+    gate: GateRecord | None = None
+    precondition_status: Literal["ok", "failed", "n/a"] = "n/a"
+    wait_status: Literal["ok", "timed_out", "n/a"] = "n/a"
+    checkpoint_status: Literal["ok", "failed", "n/a"] = "n/a"
+    result: Literal["ok", "blocked", "error"]
+    error: str | None = None
+    url_after: str | None = None
+    screenshot: str | None = None
+
+    @model_validator(mode="after")
+    def _no_secret_values(self) -> Self:
+        # The prelude is the only phase that ever handles a secret (typing the credentials);
+        # it never sets value at all, so nothing here should either.
+        if self.phase == "prelude" and self.action == "type" and self.value is not None:
+            raise ValueError("a secret value must never be stored in the replay trace")
+        return self
+
+
 class DiscoveryResult(_Model):
     run_id: str
     stop_reason: StopReason

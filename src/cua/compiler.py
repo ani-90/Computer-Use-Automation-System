@@ -58,11 +58,14 @@ def compile_capability(result: DiscoveryResult, spec: GoalSpec) -> Capability:
         )
         if emit:
             precondition = _dedupe(prev_checkpoint + since_nav)
-            steps.append(_to_step(ts, precondition, literal_to_placeholder))
+            steps.append(_to_step(ts, precondition, literal_to_placeholder, spec.balance_extract))
 
         if ts.tool in _FIELD_TOOLS:
             since_nav = _dedupe(since_nav + ts.checkpoint)
-        if prev_url is not None and ts.url_after != prev_url:
+        # A click/navigate invalidates prior field-state assertions even with no URL change: an
+        # in-page AJAX submission (like this app's own Transfer button) can hide the very fields
+        # since_nav was tracking, so a later step's precondition must not assert they still hold.
+        if ts.tool in {"click", "navigate"} or (prev_url is not None and ts.url_after != prev_url):
             since_nav = []
         prev_checkpoint = ts.checkpoint
         prev_url = ts.url_after
@@ -77,6 +80,8 @@ def compile_capability(result: DiscoveryResult, spec: GoalSpec) -> Capability:
             for n, x in spec.extracts.items()
             if x.purpose == "output"
         },
+        amount_input=spec.amount_input,
+        distinct_inputs=spec.distinct_inputs,
         steps=steps,
     )
 
@@ -107,8 +112,22 @@ def _last_extract_index(steps: list[TraceStep]) -> dict[str | None, int]:
 
 
 def _tag_map(steps: list[TraceStep]) -> dict[str, str]:
-    """Real value -> {{param}}, longest values first so a substring never wins first."""
-    pairs = {s.value: s.param for s in steps if s.provenance == "parameter" and s.value and s.param}
+    """Real value -> {{param}}, longest values first so a substring never wins first.
+
+    The same parameter can be typed in more than one literal form across a run (e.g. "12" on
+    one page, "12.00" on another — both are the same amount, a Decimal comparison treats them
+    as equal). Keeping every variant is dangerous: a longer variant like "12.00" can exactly
+    match ParaBank's own "$12.00" formatting elsewhere and swallow its ".00" along with the
+    digits, even though that ".00" was never part of what was typed. Only the shortest variant
+    per parameter is kept — never at risk of over-matching a coincidental longer occurrence.
+    """
+    by_param: dict[str, str] = {}
+    for s in steps:
+        if s.provenance == "parameter" and s.value and s.param:
+            current = by_param.get(s.param)
+            if current is None or len(s.value) < len(current):
+                by_param[s.param] = s.value
+    pairs = {v: p for p, v in by_param.items()}
     return dict(sorted(((v, f"{{{{{p}}}}}") for v, p in pairs.items()), key=lambda kv: -len(kv[0])))
 
 
@@ -180,8 +199,23 @@ def _parameters(ts: TraceStep) -> dict[str, str]:
     return {}
 
 
+_NAMED_OUTPUTS = {"confirmation_text", "new_balance", "transaction_id"}
+
+
+def _extract_as(ts: TraceStep, balance_extract: str) -> Literal[
+    "confirmation_text", "new_balance", "transaction_id", "policy_balance"
+] | None:
+    if ts.tool != "extract":
+        return None
+    if ts.extract_name == balance_extract:
+        return "policy_balance"
+    if ts.extract_name in _NAMED_OUTPUTS:
+        return ts.extract_name  # type: ignore[return-value]
+    return None  # an extract whose value this capability never keeps
+
+
 def _to_step(
-    ts: TraceStep, precondition: list[Condition], tag_map: dict[str, str]
+    ts: TraceStep, precondition: list[Condition], tag_map: dict[str, str], balance_extract: str
 ) -> Step:
     action: Literal["click", "type", "select", "navigate", "extract"] = ts.tool  # type: ignore[assignment]
     target = _param_locator(ts.target, tag_map) if ts.target else _no_target_error(ts)
@@ -194,6 +228,7 @@ def _to_step(
         wait_strategy=_wait_strategy(ts, target),
         checkpoint=checkpoint,
         error_mapping=[],  # real content comes from the Phase 6 probes
+        extract_as=_extract_as(ts, balance_extract),
     )
 
 

@@ -24,6 +24,13 @@ def _parser() -> argparse.ArgumentParser:
     discover.add_argument(
         "--capability-out", default=None, help="where to write the compiled artifact on SUCCESS"
     )
+    replay = sub.add_parser("replay", help="run a compiled capability with no LLM")
+    replay.add_argument("--capability", default="capabilities/transfer_funds.json")
+    replay.add_argument(
+        "--goal", default="goals/transfer_funds.json",
+        help="only used for the start URL and secret env-var names, never the prompt or steps",
+    )
+    replay.add_argument("--param", action="append", default=[], metavar="NAME=VALUE")
     return parser
 
 
@@ -106,9 +113,55 @@ def _run_live(
     return 0 if result.stop_reason == StopReason.SUCCESS else 1
 
 
+def _run_replay(capability_path: str, goal_path: str, raw_params: list[str]) -> int:
+    # Imported here so tests and --dry-run never load the browser.
+    from cua.adapter import PlaywrightAdapter
+    from cua.config import Config
+    from cua.enums import Outcome
+    from cua.evidence import EvidenceLogger, new_run_id
+    from cua.models import Capability
+    from cua.policy_gate import PolicyGate
+    from cua.redaction import Redactor
+    from cua.replay import ReplayEngine
+
+    try:
+        capability = Capability.model_validate_json(Path(capability_path).read_text(encoding="utf-8"))
+        spec = GoalSpec.model_validate_json(Path(goal_path).read_text(encoding="utf-8"))
+        params = _pairs(raw_params)
+        secrets = spec.secrets(os.environ)
+        start_url = spec.start_url(os.environ)
+    except KeyError as e:
+        print(f"error: missing environment variable {e}", file=sys.stderr)
+        return 2
+    except (ValueError, OSError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+
+    config = Config()
+    redactor = Redactor(config, secrets=list(secrets.values()))
+    logger = EvidenceLogger(new_run_id(), redactor, base_dir=Path("evidence") / "replay")
+    print("LIVE REPLAY: no LLM is called; this may move money in the sandbox.")
+    print(f"evidence: {logger.dir}")
+    with PlaywrightAdapter(config, logger, secrets=list(secrets.values())) as adapter:
+        result = ReplayEngine(adapter, PolicyGate(config), logger).replay(capability, params, secrets, start_url)
+    summary = redactor.redact(result.model_dump(mode="json"))
+    print(f"\nstatus: {summary['status']}")
+    print(f"llm_calls: {summary['llm_calls']}")
+    if summary["outputs"]:
+        print(f"  confirmation_text: {summary['outputs']['confirmation_text']}")
+        print(f"  new_balance: {summary['outputs']['new_balance']}")
+        print(f"  transaction_id: {summary['outputs']['transaction_id']}")
+    if summary["failure_detail"]:
+        fd = summary["failure_detail"]
+        print(f"  failure at step {fd['step_index']}: expected {fd['expected']!r}, observed {fd['observed']!r}")
+    return 0 if result.status == Outcome.SUCCESS else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     load_dotenv()
+    if args.command == "replay":
+        return _run_replay(args.capability, args.goal, args.param)
     try:
         spec = GoalSpec.model_validate_json(Path(args.goal).read_text(encoding="utf-8"))
         params = parse_params(spec, _pairs(args.param))

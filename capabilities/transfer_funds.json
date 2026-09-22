@@ -167,7 +167,8 @@
           "value": "money"
         }
       ],
-      "error_mapping": []
+      "error_mapping": [],
+      "extract_as": "policy_balance"
     },
     {
       "precondition": [
@@ -678,11 +679,11 @@
         {
           "kind": "element_visible",
           "target": {
-            "description": "paragraph \"${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.\"",
+            "description": "paragraph \"${{amount}}.00 has been transferred from account #{{from_account}} to account #{{to_account}}.\"",
             "chain": [
               {
                 "strategy": "text",
-                "value": "${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.",
+                "value": "${{amount}}.00 has been transferred from account #{{from_account}} to account #{{to_account}}.",
                 "role": null,
                 "nth": null,
                 "column": null,
@@ -768,11 +769,11 @@
         {
           "kind": "element_visible",
           "target": {
-            "description": "paragraph \"${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.\"",
+            "description": "paragraph \"${{amount}}.00 has been transferred from account #{{from_account}} to account #{{to_account}}.\"",
             "chain": [
               {
                 "strategy": "text",
-                "value": "${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.",
+                "value": "${{amount}}.00 has been transferred from account #{{from_account}} to account #{{to_account}}.",
                 "role": null,
                 "nth": null,
                 "column": null,
@@ -832,66 +833,15 @@
             ]
           },
           "value": null
-        },
-        {
-          "kind": "field_value_equals",
-          "target": {
-            "description": "textbox \"Amount: $\"",
-            "chain": [
-              {
-                "strategy": "role_name",
-                "value": null,
-                "role": "textbox",
-                "nth": 0,
-                "column": null,
-                "col": null
-              }
-            ]
-          },
-          "value": "{{amount}}"
-        },
-        {
-          "kind": "option_selected",
-          "target": {
-            "description": "combobox \"From account #\"",
-            "chain": [
-              {
-                "strategy": "role_name",
-                "value": null,
-                "role": "combobox",
-                "nth": 0,
-                "column": null,
-                "col": null
-              }
-            ]
-          },
-          "value": "{{from_account}}"
-        },
-        {
-          "kind": "option_selected",
-          "target": {
-            "description": "combobox \"to account #\"",
-            "chain": [
-              {
-                "strategy": "role_name",
-                "value": null,
-                "role": "combobox",
-                "nth": 1,
-                "column": null,
-                "col": null
-              }
-            ]
-          },
-          "value": "{{to_account}}"
         }
       ],
       "action": "extract",
       "target": {
-        "description": "paragraph \"${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.\"",
+        "description": "paragraph \"${{amount}}.00 has been transferred from account #{{from_account}} to account #{{to_account}}.\"",
         "chain": [
           {
             "strategy": "text",
-            "value": "${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.",
+            "value": "${{amount}}.00 has been transferred from account #{{from_account}} to account #{{to_account}}.",
             "role": null,
             "nth": null,
             "column": null,
@@ -903,11 +853,11 @@
       "wait_strategy": {
         "kind": "element_visible",
         "target": {
-          "description": "paragraph \"${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.\"",
+          "description": "paragraph \"${{amount}}.00 has been transferred from account #{{from_account}} to account #{{to_account}}.\"",
           "chain": [
             {
               "strategy": "text",
-              "value": "${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.",
+              "value": "${{amount}}.00 has been transferred from account #{{from_account}} to account #{{to_account}}.",
               "role": null,
               "nth": null,
               "column": null,
@@ -922,11 +872,11 @@
         {
           "kind": "shape_matches",
           "target": {
-            "description": "paragraph \"${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.\"",
+            "description": "paragraph \"${{amount}}.00 has been transferred from account #{{from_account}} to account #{{to_account}}.\"",
             "chain": [
               {
                 "strategy": "text",
-                "value": "${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.",
+                "value": "${{amount}}.00 has been transferred from account #{{from_account}} to account #{{to_account}}.",
                 "role": null,
                 "nth": null,
                 "column": null,
@@ -937,18 +887,19 @@
           "value": "nonempty"
         }
       ],
-      "error_mapping": []
+      "error_mapping": [],
+      "extract_as": "confirmation_text"
     },
     {
       "precondition": [
         {
           "kind": "shape_matches",
           "target": {
-            "description": "paragraph \"${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.\"",
+            "description": "paragraph \"${{amount}}.00 has been transferred from account #{{from_account}} to account #{{to_account}}.\"",
             "chain": [
               {
                 "strategy": "text",
-                "value": "${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.",
+                "value": "${{amount}}.00 has been transferred from account #{{from_account}} to account #{{to_account}}.",
                 "role": null,
                 "nth": null,
                 "column": null,
@@ -957,57 +908,6 @@
             ]
           },
           "value": "nonempty"
-        },
-        {
-          "kind": "field_value_equals",
-          "target": {
-            "description": "textbox \"Amount: $\"",
-            "chain": [
-              {
-                "strategy": "role_name",
-                "value": null,
-                "role": "textbox",
-                "nth": 0,
-                "column": null,
-                "col": null
-              }
-            ]
-          },
-          "value": "{{amount}}"
-        },
-        {
-          "kind": "option_selected",
-          "target": {
-            "description": "combobox \"From account #\"",
-            "chain": [
-              {
-                "strategy": "role_name",
-                "value": null,
-                "role": "combobox",
-                "nth": 0,
-                "column": null,
-                "col": null
-              }
-            ]
-          },
-          "value": "{{from_account}}"
-        },
-        {
-          "kind": "option_selected",
-          "target": {
-            "description": "combobox \"to account #\"",
-            "chain": [
-              {
-                "strategy": "role_name",
-                "value": null,
-                "role": "combobox",
-                "nth": 1,
-                "column": null,
-                "col": null
-              }
-            ]
-          },
-          "value": "{{to_account}}"
         }
       ],
       "action": "click",
@@ -1242,7 +1142,8 @@
           "value": "money"
         }
       ],
-      "error_mapping": []
+      "error_mapping": [],
+      "extract_as": "new_balance"
     },
     {
       "precondition": [
@@ -1771,40 +1672,6 @@
             ]
           },
           "value": null
-        },
-        {
-          "kind": "field_value_equals",
-          "target": {
-            "description": "textbox \"Find by Amount:\"",
-            "chain": [
-              {
-                "strategy": "role_name",
-                "value": null,
-                "role": "textbox",
-                "nth": 4,
-                "column": null,
-                "col": null
-              }
-            ]
-          },
-          "value": "{{amount}}"
-        },
-        {
-          "kind": "option_selected",
-          "target": {
-            "description": "combobox \"Select an account:\"",
-            "chain": [
-              {
-                "strategy": "role_name",
-                "value": null,
-                "role": "combobox",
-                "nth": 0,
-                "column": null,
-                "col": null
-              }
-            ]
-          },
-          "value": "{{from_account}}"
         }
       ],
       "action": "click",
@@ -1939,7 +1806,15 @@
           "value": "nonempty"
         }
       ],
-      "error_mapping": []
+      "error_mapping": [],
+      "extract_as": "transaction_id"
     }
+  ],
+  "amount_input": "amount",
+  "distinct_inputs": [
+    [
+      "from_account",
+      "to_account"
+    ]
   ]
 }
