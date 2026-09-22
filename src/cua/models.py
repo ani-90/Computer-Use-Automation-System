@@ -90,12 +90,13 @@ class ErrorMapping(_Strict):
 
 
 class Step(_Strict):
-    precondition: Condition | None
+    # Both are all_of lists: every condition must hold. Empty means nothing is asserted.
+    precondition: list[Condition] = Field(default_factory=list)
     action: Literal["click", "type", "select", "navigate", "extract"]
     target: Locator
     parameters: dict[str, str]  # may hold {{param}} placeholders, never literal values
     wait_strategy: WaitStrategy
-    checkpoint: Condition | None
+    checkpoint: list[Condition] = Field(default_factory=list)
     error_mapping: list[ErrorMapping]
 
 

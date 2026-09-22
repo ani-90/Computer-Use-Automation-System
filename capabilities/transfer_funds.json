@@ -1,0 +1,1945 @@
+{
+  "schema_version": "1.0",
+  "version": "1",
+  "name": "transfer_funds",
+  "inputs": {
+    "from_account": {
+      "type": "string",
+      "required": true
+    },
+    "to_account": {
+      "type": "string",
+      "required": true
+    },
+    "amount": {
+      "type": "decimal",
+      "required": true
+    }
+  },
+  "outputs": {
+    "confirmation_text": {
+      "type": "string",
+      "required": true
+    },
+    "new_balance": {
+      "type": "string",
+      "required": true
+    },
+    "transaction_id": {
+      "type": "string",
+      "required": false
+    }
+  },
+  "steps": [
+    {
+      "precondition": [
+        {
+          "kind": "url_matches",
+          "target": null,
+          "value": "/parabank/overview.htm"
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "heading \"Account Services\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Account Services",
+                "role": "heading",
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "heading \"Accounts Overview\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Accounts Overview",
+                "role": "heading",
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "paragraph \"Welcome Test Agent\"",
+            "chain": [
+              {
+                "strategy": "text",
+                "value": "Welcome Test Agent",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "link \"Accounts Overview\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Accounts Overview",
+                "role": "link",
+                "nth": null,
+                "column": null,
+                "col": null
+              },
+              {
+                "strategy": "text",
+                "value": "Accounts Overview",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        }
+      ],
+      "action": "extract",
+      "target": {
+        "description": "cell[row \"{{from_account}}\", \"Balance*\"]",
+        "chain": [
+          {
+            "strategy": "table_cell",
+            "value": "{{from_account}}",
+            "role": null,
+            "nth": null,
+            "column": "Balance*",
+            "col": null
+          }
+        ]
+      },
+      "parameters": {},
+      "wait_strategy": {
+        "kind": "element_visible",
+        "target": {
+          "description": "cell[row \"{{from_account}}\", \"Balance*\"]",
+          "chain": [
+            {
+              "strategy": "table_cell",
+              "value": "{{from_account}}",
+              "role": null,
+              "nth": null,
+              "column": "Balance*",
+              "col": null
+            }
+          ]
+        },
+        "value": null,
+        "timeout_ms": 10000
+      },
+      "checkpoint": [
+        {
+          "kind": "shape_matches",
+          "target": {
+            "description": "cell[row \"{{from_account}}\", \"Balance*\"]",
+            "chain": [
+              {
+                "strategy": "table_cell",
+                "value": "{{from_account}}",
+                "role": null,
+                "nth": null,
+                "column": "Balance*",
+                "col": null
+              }
+            ]
+          },
+          "value": "money"
+        }
+      ],
+      "error_mapping": []
+    },
+    {
+      "precondition": [
+        {
+          "kind": "shape_matches",
+          "target": {
+            "description": "cell[row \"{{from_account}}\", \"Balance*\"]",
+            "chain": [
+              {
+                "strategy": "table_cell",
+                "value": "{{from_account}}",
+                "role": null,
+                "nth": null,
+                "column": "Balance*",
+                "col": null
+              }
+            ]
+          },
+          "value": "money"
+        }
+      ],
+      "action": "click",
+      "target": {
+        "description": "link \"Transfer Funds\"",
+        "chain": [
+          {
+            "strategy": "role_name",
+            "value": "Transfer Funds",
+            "role": "link",
+            "nth": null,
+            "column": null,
+            "col": null
+          },
+          {
+            "strategy": "text",
+            "value": "Transfer Funds",
+            "role": null,
+            "nth": null,
+            "column": null,
+            "col": null
+          }
+        ]
+      },
+      "parameters": {},
+      "wait_strategy": {
+        "kind": "url_change",
+        "target": null,
+        "value": "/parabank/transfer.htm",
+        "timeout_ms": 10000
+      },
+      "checkpoint": [
+        {
+          "kind": "url_matches",
+          "target": null,
+          "value": "/parabank/transfer.htm"
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "heading \"Transfer Funds\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Transfer Funds",
+                "role": "heading",
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "text \"Amount: $\"",
+            "chain": [
+              {
+                "strategy": "text",
+                "value": "Amount: $",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "textbox \"Amount: $\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "textbox",
+                "nth": 0,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        }
+      ],
+      "error_mapping": []
+    },
+    {
+      "precondition": [
+        {
+          "kind": "url_matches",
+          "target": null,
+          "value": "/parabank/transfer.htm"
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "heading \"Transfer Funds\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Transfer Funds",
+                "role": "heading",
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "text \"Amount: $\"",
+            "chain": [
+              {
+                "strategy": "text",
+                "value": "Amount: $",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "textbox \"Amount: $\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "textbox",
+                "nth": 0,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        }
+      ],
+      "action": "type",
+      "target": {
+        "description": "textbox \"Amount: $\"",
+        "chain": [
+          {
+            "strategy": "role_name",
+            "value": null,
+            "role": "textbox",
+            "nth": 0,
+            "column": null,
+            "col": null
+          }
+        ]
+      },
+      "parameters": {
+        "value": "{{amount}}"
+      },
+      "wait_strategy": {
+        "kind": "element_visible",
+        "target": {
+          "description": "textbox \"Amount: $\"",
+          "chain": [
+            {
+              "strategy": "role_name",
+              "value": null,
+              "role": "textbox",
+              "nth": 0,
+              "column": null,
+              "col": null
+            }
+          ]
+        },
+        "value": null,
+        "timeout_ms": 10000
+      },
+      "checkpoint": [
+        {
+          "kind": "field_value_equals",
+          "target": {
+            "description": "textbox \"Amount: $\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "textbox",
+                "nth": 0,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{amount}}"
+        }
+      ],
+      "error_mapping": []
+    },
+    {
+      "precondition": [
+        {
+          "kind": "field_value_equals",
+          "target": {
+            "description": "textbox \"Amount: $\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "textbox",
+                "nth": 0,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{amount}}"
+        }
+      ],
+      "action": "select",
+      "target": {
+        "description": "combobox \"From account #\"",
+        "chain": [
+          {
+            "strategy": "role_name",
+            "value": null,
+            "role": "combobox",
+            "nth": 0,
+            "column": null,
+            "col": null
+          }
+        ]
+      },
+      "parameters": {
+        "value": "{{from_account}}"
+      },
+      "wait_strategy": {
+        "kind": "option_present",
+        "target": {
+          "description": "combobox \"From account #\"",
+          "chain": [
+            {
+              "strategy": "role_name",
+              "value": null,
+              "role": "combobox",
+              "nth": 0,
+              "column": null,
+              "col": null
+            }
+          ]
+        },
+        "value": "{{from_account}}",
+        "timeout_ms": 10000
+      },
+      "checkpoint": [
+        {
+          "kind": "option_selected",
+          "target": {
+            "description": "combobox \"From account #\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "combobox",
+                "nth": 0,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{from_account}}"
+        }
+      ],
+      "error_mapping": []
+    },
+    {
+      "precondition": [
+        {
+          "kind": "option_selected",
+          "target": {
+            "description": "combobox \"From account #\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "combobox",
+                "nth": 0,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{from_account}}"
+        },
+        {
+          "kind": "field_value_equals",
+          "target": {
+            "description": "textbox \"Amount: $\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "textbox",
+                "nth": 0,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{amount}}"
+        }
+      ],
+      "action": "select",
+      "target": {
+        "description": "combobox \"to account #\"",
+        "chain": [
+          {
+            "strategy": "role_name",
+            "value": null,
+            "role": "combobox",
+            "nth": 1,
+            "column": null,
+            "col": null
+          }
+        ]
+      },
+      "parameters": {
+        "value": "{{to_account}}"
+      },
+      "wait_strategy": {
+        "kind": "option_present",
+        "target": {
+          "description": "combobox \"to account #\"",
+          "chain": [
+            {
+              "strategy": "role_name",
+              "value": null,
+              "role": "combobox",
+              "nth": 1,
+              "column": null,
+              "col": null
+            }
+          ]
+        },
+        "value": "{{to_account}}",
+        "timeout_ms": 10000
+      },
+      "checkpoint": [
+        {
+          "kind": "option_selected",
+          "target": {
+            "description": "combobox \"to account #\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "combobox",
+                "nth": 1,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{to_account}}"
+        }
+      ],
+      "error_mapping": []
+    },
+    {
+      "precondition": [
+        {
+          "kind": "option_selected",
+          "target": {
+            "description": "combobox \"to account #\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "combobox",
+                "nth": 1,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{to_account}}"
+        },
+        {
+          "kind": "field_value_equals",
+          "target": {
+            "description": "textbox \"Amount: $\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "textbox",
+                "nth": 0,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{amount}}"
+        },
+        {
+          "kind": "option_selected",
+          "target": {
+            "description": "combobox \"From account #\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "combobox",
+                "nth": 0,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{from_account}}"
+        }
+      ],
+      "action": "click",
+      "target": {
+        "description": "button \"Transfer\"",
+        "chain": [
+          {
+            "strategy": "role_name",
+            "value": "Transfer",
+            "role": "button",
+            "nth": null,
+            "column": null,
+            "col": null
+          },
+          {
+            "strategy": "text",
+            "value": "Transfer",
+            "role": null,
+            "nth": null,
+            "column": null,
+            "col": null
+          }
+        ]
+      },
+      "parameters": {},
+      "wait_strategy": {
+        "kind": "element_visible",
+        "target": {
+          "description": "heading \"Transfer Complete!\"",
+          "chain": [
+            {
+              "strategy": "role_name",
+              "value": "Transfer Complete!",
+              "role": "heading",
+              "nth": null,
+              "column": null,
+              "col": null
+            }
+          ]
+        },
+        "value": null,
+        "timeout_ms": 10000
+      },
+      "checkpoint": [
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "heading \"Transfer Complete!\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Transfer Complete!",
+                "role": "heading",
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "paragraph \"${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.\"",
+            "chain": [
+              {
+                "strategy": "text",
+                "value": "${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "paragraph \"See Account Activity for more details.\"",
+            "chain": [
+              {
+                "strategy": "text",
+                "value": "See Account Activity for more details.",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_absent",
+          "target": {
+            "description": "heading \"Transfer Funds\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Transfer Funds",
+                "role": "heading",
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_absent",
+          "target": {
+            "description": "text \"Amount: $\"",
+            "chain": [
+              {
+                "strategy": "text",
+                "value": "Amount: $",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        }
+      ],
+      "error_mapping": []
+    },
+    {
+      "precondition": [
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "heading \"Transfer Complete!\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Transfer Complete!",
+                "role": "heading",
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "paragraph \"${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.\"",
+            "chain": [
+              {
+                "strategy": "text",
+                "value": "${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "paragraph \"See Account Activity for more details.\"",
+            "chain": [
+              {
+                "strategy": "text",
+                "value": "See Account Activity for more details.",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_absent",
+          "target": {
+            "description": "heading \"Transfer Funds\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Transfer Funds",
+                "role": "heading",
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_absent",
+          "target": {
+            "description": "text \"Amount: $\"",
+            "chain": [
+              {
+                "strategy": "text",
+                "value": "Amount: $",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "field_value_equals",
+          "target": {
+            "description": "textbox \"Amount: $\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "textbox",
+                "nth": 0,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{amount}}"
+        },
+        {
+          "kind": "option_selected",
+          "target": {
+            "description": "combobox \"From account #\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "combobox",
+                "nth": 0,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{from_account}}"
+        },
+        {
+          "kind": "option_selected",
+          "target": {
+            "description": "combobox \"to account #\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "combobox",
+                "nth": 1,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{to_account}}"
+        }
+      ],
+      "action": "extract",
+      "target": {
+        "description": "paragraph \"${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.\"",
+        "chain": [
+          {
+            "strategy": "text",
+            "value": "${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.",
+            "role": null,
+            "nth": null,
+            "column": null,
+            "col": null
+          }
+        ]
+      },
+      "parameters": {},
+      "wait_strategy": {
+        "kind": "element_visible",
+        "target": {
+          "description": "paragraph \"${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.\"",
+          "chain": [
+            {
+              "strategy": "text",
+              "value": "${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.",
+              "role": null,
+              "nth": null,
+              "column": null,
+              "col": null
+            }
+          ]
+        },
+        "value": null,
+        "timeout_ms": 10000
+      },
+      "checkpoint": [
+        {
+          "kind": "shape_matches",
+          "target": {
+            "description": "paragraph \"${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.\"",
+            "chain": [
+              {
+                "strategy": "text",
+                "value": "${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "nonempty"
+        }
+      ],
+      "error_mapping": []
+    },
+    {
+      "precondition": [
+        {
+          "kind": "shape_matches",
+          "target": {
+            "description": "paragraph \"${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.\"",
+            "chain": [
+              {
+                "strategy": "text",
+                "value": "${{amount}} has been transferred from account #{{from_account}} to account #{{to_account}}.",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "nonempty"
+        },
+        {
+          "kind": "field_value_equals",
+          "target": {
+            "description": "textbox \"Amount: $\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "textbox",
+                "nth": 0,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{amount}}"
+        },
+        {
+          "kind": "option_selected",
+          "target": {
+            "description": "combobox \"From account #\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "combobox",
+                "nth": 0,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{from_account}}"
+        },
+        {
+          "kind": "option_selected",
+          "target": {
+            "description": "combobox \"to account #\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "combobox",
+                "nth": 1,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{to_account}}"
+        }
+      ],
+      "action": "click",
+      "target": {
+        "description": "link \"Accounts Overview\"",
+        "chain": [
+          {
+            "strategy": "role_name",
+            "value": "Accounts Overview",
+            "role": "link",
+            "nth": null,
+            "column": null,
+            "col": null
+          },
+          {
+            "strategy": "text",
+            "value": "Accounts Overview",
+            "role": null,
+            "nth": null,
+            "column": null,
+            "col": null
+          }
+        ]
+      },
+      "parameters": {},
+      "wait_strategy": {
+        "kind": "url_change",
+        "target": null,
+        "value": "/parabank/overview.htm",
+        "timeout_ms": 10000
+      },
+      "checkpoint": [
+        {
+          "kind": "url_matches",
+          "target": null,
+          "value": "/parabank/overview.htm"
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "heading \"Accounts Overview\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Accounts Overview",
+                "role": "heading",
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "link \"{{to_account}}\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "{{to_account}}",
+                "role": "link",
+                "nth": null,
+                "column": null,
+                "col": null
+              },
+              {
+                "strategy": "text",
+                "value": "{{to_account}}",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "link \"{{from_account}}\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "{{from_account}}",
+                "role": "link",
+                "nth": null,
+                "column": null,
+                "col": null
+              },
+              {
+                "strategy": "text",
+                "value": "{{from_account}}",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        }
+      ],
+      "error_mapping": []
+    },
+    {
+      "precondition": [
+        {
+          "kind": "url_matches",
+          "target": null,
+          "value": "/parabank/overview.htm"
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "heading \"Accounts Overview\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Accounts Overview",
+                "role": "heading",
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "link \"{{to_account}}\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "{{to_account}}",
+                "role": "link",
+                "nth": null,
+                "column": null,
+                "col": null
+              },
+              {
+                "strategy": "text",
+                "value": "{{to_account}}",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "link \"{{from_account}}\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "{{from_account}}",
+                "role": "link",
+                "nth": null,
+                "column": null,
+                "col": null
+              },
+              {
+                "strategy": "text",
+                "value": "{{from_account}}",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        }
+      ],
+      "action": "extract",
+      "target": {
+        "description": "cell[row \"{{from_account}}\", \"Balance*\"]",
+        "chain": [
+          {
+            "strategy": "table_cell",
+            "value": "{{from_account}}",
+            "role": null,
+            "nth": null,
+            "column": "Balance*",
+            "col": null
+          }
+        ]
+      },
+      "parameters": {},
+      "wait_strategy": {
+        "kind": "element_visible",
+        "target": {
+          "description": "cell[row \"{{from_account}}\", \"Balance*\"]",
+          "chain": [
+            {
+              "strategy": "table_cell",
+              "value": "{{from_account}}",
+              "role": null,
+              "nth": null,
+              "column": "Balance*",
+              "col": null
+            }
+          ]
+        },
+        "value": null,
+        "timeout_ms": 10000
+      },
+      "checkpoint": [
+        {
+          "kind": "shape_matches",
+          "target": {
+            "description": "cell[row \"{{from_account}}\", \"Balance*\"]",
+            "chain": [
+              {
+                "strategy": "table_cell",
+                "value": "{{from_account}}",
+                "role": null,
+                "nth": null,
+                "column": "Balance*",
+                "col": null
+              }
+            ]
+          },
+          "value": "money"
+        }
+      ],
+      "error_mapping": []
+    },
+    {
+      "precondition": [
+        {
+          "kind": "shape_matches",
+          "target": {
+            "description": "cell[row \"{{from_account}}\", \"Balance*\"]",
+            "chain": [
+              {
+                "strategy": "table_cell",
+                "value": "{{from_account}}",
+                "role": null,
+                "nth": null,
+                "column": "Balance*",
+                "col": null
+              }
+            ]
+          },
+          "value": "money"
+        }
+      ],
+      "action": "click",
+      "target": {
+        "description": "link \"Find Transactions\"",
+        "chain": [
+          {
+            "strategy": "role_name",
+            "value": "Find Transactions",
+            "role": "link",
+            "nth": null,
+            "column": null,
+            "col": null
+          },
+          {
+            "strategy": "text",
+            "value": "Find Transactions",
+            "role": null,
+            "nth": null,
+            "column": null,
+            "col": null
+          }
+        ]
+      },
+      "parameters": {},
+      "wait_strategy": {
+        "kind": "url_change",
+        "target": null,
+        "value": "/parabank/findtrans.htm",
+        "timeout_ms": 10000
+      },
+      "checkpoint": [
+        {
+          "kind": "url_matches",
+          "target": null,
+          "value": "/parabank/findtrans.htm"
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "heading \"Find Transactions\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Find Transactions",
+                "role": "heading",
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "text \"Find by Transaction ID:\"",
+            "chain": [
+              {
+                "strategy": "text",
+                "value": "Find by Transaction ID:",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "paragraph \"Find by Date Range\"",
+            "chain": [
+              {
+                "strategy": "text",
+                "value": "Find by Date Range",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        }
+      ],
+      "error_mapping": []
+    },
+    {
+      "precondition": [
+        {
+          "kind": "url_matches",
+          "target": null,
+          "value": "/parabank/findtrans.htm"
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "heading \"Find Transactions\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Find Transactions",
+                "role": "heading",
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "text \"Find by Transaction ID:\"",
+            "chain": [
+              {
+                "strategy": "text",
+                "value": "Find by Transaction ID:",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "paragraph \"Find by Date Range\"",
+            "chain": [
+              {
+                "strategy": "text",
+                "value": "Find by Date Range",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        }
+      ],
+      "action": "type",
+      "target": {
+        "description": "textbox \"Find by Amount:\"",
+        "chain": [
+          {
+            "strategy": "role_name",
+            "value": null,
+            "role": "textbox",
+            "nth": 4,
+            "column": null,
+            "col": null
+          }
+        ]
+      },
+      "parameters": {
+        "value": "{{amount}}"
+      },
+      "wait_strategy": {
+        "kind": "element_visible",
+        "target": {
+          "description": "textbox \"Find by Amount:\"",
+          "chain": [
+            {
+              "strategy": "role_name",
+              "value": null,
+              "role": "textbox",
+              "nth": 4,
+              "column": null,
+              "col": null
+            }
+          ]
+        },
+        "value": null,
+        "timeout_ms": 10000
+      },
+      "checkpoint": [
+        {
+          "kind": "field_value_equals",
+          "target": {
+            "description": "textbox \"Find by Amount:\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "textbox",
+                "nth": 4,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{amount}}"
+        }
+      ],
+      "error_mapping": []
+    },
+    {
+      "precondition": [
+        {
+          "kind": "field_value_equals",
+          "target": {
+            "description": "textbox \"Find by Amount:\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "textbox",
+                "nth": 4,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{amount}}"
+        }
+      ],
+      "action": "select",
+      "target": {
+        "description": "combobox \"Select an account:\"",
+        "chain": [
+          {
+            "strategy": "role_name",
+            "value": null,
+            "role": "combobox",
+            "nth": 0,
+            "column": null,
+            "col": null
+          }
+        ]
+      },
+      "parameters": {
+        "value": "{{from_account}}"
+      },
+      "wait_strategy": {
+        "kind": "option_present",
+        "target": {
+          "description": "combobox \"Select an account:\"",
+          "chain": [
+            {
+              "strategy": "role_name",
+              "value": null,
+              "role": "combobox",
+              "nth": 0,
+              "column": null,
+              "col": null
+            }
+          ]
+        },
+        "value": "{{from_account}}",
+        "timeout_ms": 10000
+      },
+      "checkpoint": [
+        {
+          "kind": "option_selected",
+          "target": {
+            "description": "combobox \"Select an account:\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "combobox",
+                "nth": 0,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{from_account}}"
+        }
+      ],
+      "error_mapping": []
+    },
+    {
+      "precondition": [
+        {
+          "kind": "option_selected",
+          "target": {
+            "description": "combobox \"Select an account:\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "combobox",
+                "nth": 0,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{from_account}}"
+        },
+        {
+          "kind": "field_value_equals",
+          "target": {
+            "description": "textbox \"Find by Amount:\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "textbox",
+                "nth": 4,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{amount}}"
+        }
+      ],
+      "action": "click",
+      "target": {
+        "description": "button \"Find Transactions\" #3",
+        "chain": [
+          {
+            "strategy": "role_name",
+            "value": "Find Transactions",
+            "role": "button",
+            "nth": 3,
+            "column": null,
+            "col": null
+          }
+        ]
+      },
+      "parameters": {},
+      "wait_strategy": {
+        "kind": "element_visible",
+        "target": {
+          "description": "heading \"Transaction Results\"",
+          "chain": [
+            {
+              "strategy": "role_name",
+              "value": "Transaction Results",
+              "role": "heading",
+              "nth": null,
+              "column": null,
+              "col": null
+            }
+          ]
+        },
+        "value": null,
+        "timeout_ms": 10000
+      },
+      "checkpoint": [
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "heading \"Transaction Results\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Transaction Results",
+                "role": "heading",
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "link \"Funds Transfer Sent\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Funds Transfer Sent",
+                "role": "link",
+                "nth": null,
+                "column": null,
+                "col": null
+              },
+              {
+                "strategy": "text",
+                "value": "Funds Transfer Sent",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_absent",
+          "target": {
+            "description": "heading \"Find Transactions\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Find Transactions",
+                "role": "heading",
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_absent",
+          "target": {
+            "description": "text \"Find by Transaction ID:\"",
+            "chain": [
+              {
+                "strategy": "text",
+                "value": "Find by Transaction ID:",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        }
+      ],
+      "error_mapping": []
+    },
+    {
+      "precondition": [
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "heading \"Transaction Results\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Transaction Results",
+                "role": "heading",
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "link \"Funds Transfer Sent\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Funds Transfer Sent",
+                "role": "link",
+                "nth": null,
+                "column": null,
+                "col": null
+              },
+              {
+                "strategy": "text",
+                "value": "Funds Transfer Sent",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_absent",
+          "target": {
+            "description": "heading \"Find Transactions\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Find Transactions",
+                "role": "heading",
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "element_absent",
+          "target": {
+            "description": "text \"Find by Transaction ID:\"",
+            "chain": [
+              {
+                "strategy": "text",
+                "value": "Find by Transaction ID:",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        },
+        {
+          "kind": "field_value_equals",
+          "target": {
+            "description": "textbox \"Find by Amount:\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "textbox",
+                "nth": 4,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{amount}}"
+        },
+        {
+          "kind": "option_selected",
+          "target": {
+            "description": "combobox \"Select an account:\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "combobox",
+                "nth": 0,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": "{{from_account}}"
+        }
+      ],
+      "action": "click",
+      "target": {
+        "description": "link \"Funds Transfer Sent\"",
+        "chain": [
+          {
+            "strategy": "role_name",
+            "value": "Funds Transfer Sent",
+            "role": "link",
+            "nth": null,
+            "column": null,
+            "col": null
+          },
+          {
+            "strategy": "text",
+            "value": "Funds Transfer Sent",
+            "role": null,
+            "nth": null,
+            "column": null,
+            "col": null
+          }
+        ]
+      },
+      "parameters": {},
+      "wait_strategy": {
+        "kind": "url_change",
+        "target": null,
+        "value": "/parabank/transaction.htm",
+        "timeout_ms": 10000
+      },
+      "checkpoint": [
+        {
+          "kind": "url_matches",
+          "target": null,
+          "value": "/parabank/transaction.htm"
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "heading \"Transaction Details\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Transaction Details",
+                "role": "heading",
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        }
+      ],
+      "error_mapping": []
+    },
+    {
+      "precondition": [
+        {
+          "kind": "url_matches",
+          "target": null,
+          "value": "/parabank/transaction.htm"
+        },
+        {
+          "kind": "element_visible",
+          "target": {
+            "description": "heading \"Transaction Details\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": "Transaction Details",
+                "role": "heading",
+                "nth": null,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        }
+      ],
+      "action": "extract",
+      "target": {
+        "description": "cell[row \"Transaction ID:\", col 1]",
+        "chain": [
+          {
+            "strategy": "table_cell",
+            "value": "Transaction ID:",
+            "role": null,
+            "nth": null,
+            "column": null,
+            "col": 1
+          }
+        ]
+      },
+      "parameters": {},
+      "wait_strategy": {
+        "kind": "element_visible",
+        "target": {
+          "description": "cell[row \"Transaction ID:\", col 1]",
+          "chain": [
+            {
+              "strategy": "table_cell",
+              "value": "Transaction ID:",
+              "role": null,
+              "nth": null,
+              "column": null,
+              "col": 1
+            }
+          ]
+        },
+        "value": null,
+        "timeout_ms": 10000
+      },
+      "checkpoint": [
+        {
+          "kind": "shape_matches",
+          "target": {
+            "description": "cell[row \"Transaction ID:\", col 1]",
+            "chain": [
+              {
+                "strategy": "table_cell",
+                "value": "Transaction ID:",
+                "role": null,
+                "nth": null,
+                "column": null,
+                "col": 1
+              }
+            ]
+          },
+          "value": "nonempty"
+        }
+      ],
+      "error_mapping": []
+    }
+  ]
+}

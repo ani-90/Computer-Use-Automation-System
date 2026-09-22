@@ -53,9 +53,10 @@ def test_a_real_run_starts_the_live_path_with_the_parsed_arguments(monkeypatch):
     calls = []
     monkeypatch.setattr("cua.cli._run_live", lambda *args: calls.append(args) or 0)
     assert main(["discover", "--goal", SPEC_PATH, *PARAMS, "--max-steps", "2", "--timeout", "20"]) == 0
-    _spec, params, tagged, start_url, max_steps, timeout = calls[0]
+    _spec, params, tagged, start_url, max_steps, timeout, capability_out = calls[0]
     assert params["amount"] == "5" and start_url == "http://h/p/index.htm"
-    assert (max_steps, timeout, tagged.secrets["password"]) == (2, 20.0, "svc-pass-x")
+    assert (max_steps, timeout, capability_out) == (2, 20.0, None)
+    assert tagged.secrets["password"] == "svc-pass-x"
 
 
 def test_a_live_run_without_credentials_stops_before_a_browser_opens(monkeypatch, capsys):

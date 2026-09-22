@@ -23,12 +23,12 @@ def _locator() -> Locator:
 
 def _step(target) -> dict:
     return {
-        "precondition": None,
+        "precondition": [],
         "action": "click",
         "target": target,
         "parameters": {},
         "wait_strategy": WaitStrategy(kind="network_idle"),
-        "checkpoint": None,
+        "checkpoint": [],
         "error_mapping": [],
     }
 

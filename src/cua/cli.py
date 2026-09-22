@@ -21,6 +21,9 @@ def _parser() -> argparse.ArgumentParser:
     discover.add_argument("--dry-run", action="store_true", help="validate and show the goal only")
     discover.add_argument("--max-steps", type=int, default=None, help="override MAX_STEPS")
     discover.add_argument("--timeout", type=float, default=None, help="override TIMEOUT (seconds)")
+    discover.add_argument(
+        "--capability-out", default=None, help="where to write the compiled artifact on SUCCESS"
+    )
     return parser
 
 
@@ -41,6 +44,7 @@ def _run_live(
     start_url: str,
     max_steps: int | None,
     timeout: float | None,
+    capability_out: str | None,
 ) -> int:
     # Imported here so --dry-run and the tests never load the browser or the SDK.
     from cua.adapter import PlaywrightAdapter
@@ -91,6 +95,14 @@ def _run_live(
     )
     for name, value in summary["outputs"].items():
         print(f"  {name}: {value}")
+    if result.stop_reason == StopReason.SUCCESS:
+        from cua.compiler import compile_capability
+
+        cap = compile_capability(result, spec)
+        out = Path(capability_out) if capability_out else Path("capabilities") / f"{spec.name}.json"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(cap.model_dump_json(indent=2), encoding="utf-8")
+        print(f"capability: {out}")
     return 0 if result.stop_reason == StopReason.SUCCESS else 1
 
 
@@ -114,7 +126,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {e}", file=sys.stderr)
         return 2
     if not args.dry_run:
-        return _run_live(spec, params, tagged, start_url, args.max_steps, args.timeout)
+        return _run_live(
+            spec, params, tagged, start_url, args.max_steps, args.timeout, args.capability_out
+        )
     print(f"start URL:            {start_url}")
     print(f"tagged parameters:    {', '.join(tagged.params)}")
     print(f"secrets (not shown):  {', '.join(tagged.secrets)}")
