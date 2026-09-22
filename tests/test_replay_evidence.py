@@ -49,7 +49,9 @@ def test_a_failed_step_still_gets_a_screenshot_and_an_honest_trace(tmp_path):
     engine = ReplayEngine(fake, PolicyGate(Config()), logger)
 
     result = engine.replay(capability(), PARAMS, bad_secrets, BASE + "/index.htm")
-    assert result.status == Outcome.HARD_FAILURE
+    # Classified (login_rejected, Phase 6) rather than a generic hard failure — but the trace and
+    # screenshot must still be written honestly regardless of how the failure was classified.
+    assert result.status == Outcome.BUSINESS_OUTCOME
 
     trace = json.loads((logger.dir / "trace.json").read_text(encoding="utf-8"))
     last = trace["steps"][-1]

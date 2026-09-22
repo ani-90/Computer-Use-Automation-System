@@ -471,7 +471,29 @@
           "value": "{{from_account}}"
         }
       ],
-      "error_mapping": [],
+      "error_mapping": [
+        {
+          "when": {
+            "kind": "option_present",
+            "target": {
+              "description": "combobox \"From account #\"",
+              "chain": [
+                {
+                  "strategy": "role_name",
+                  "value": null,
+                  "role": "combobox",
+                  "nth": 0,
+                  "column": null,
+                  "col": null
+                }
+              ]
+            },
+            "value": "{{from_account}}"
+          },
+          "outcome": "BUSINESS_OUTCOME",
+          "detail": "invalid_account"
+        }
+      ],
       "is_submission": false
     },
     {
@@ -565,7 +587,29 @@
           "value": "{{to_account}}"
         }
       ],
-      "error_mapping": [],
+      "error_mapping": [
+        {
+          "when": {
+            "kind": "option_present",
+            "target": {
+              "description": "combobox \"to account #\"",
+              "chain": [
+                {
+                  "strategy": "role_name",
+                  "value": null,
+                  "role": "combobox",
+                  "nth": 1,
+                  "column": null,
+                  "col": null
+                }
+              ]
+            },
+            "value": "{{to_account}}"
+          },
+          "outcome": "BUSINESS_OUTCOME",
+          "detail": "invalid_account"
+        }
+      ],
       "is_submission": false
     },
     {
@@ -1454,7 +1498,29 @@
           "value": "{{from_account}}"
         }
       ],
-      "error_mapping": [],
+      "error_mapping": [
+        {
+          "when": {
+            "kind": "option_present",
+            "target": {
+              "description": "combobox \"Select an account:\"",
+              "chain": [
+                {
+                  "strategy": "role_name",
+                  "value": null,
+                  "role": "combobox",
+                  "nth": 0,
+                  "column": null,
+                  "col": null
+                }
+              ]
+            },
+            "value": "{{from_account}}"
+          },
+          "outcome": "BUSINESS_OUTCOME",
+          "detail": "invalid_account"
+        }
+      ],
       "is_submission": false
     },
     {

@@ -82,7 +82,7 @@ def test_replay_output_is_redacted_before_printing(monkeypatch, capsys):
         def model_dump(self, mode="json"):
             return {
                 "run_id": self.run_id, "status": self.status.value, "llm_calls": self.llm_calls,
-                "failure_detail": self.failure_detail,
+                "failure_detail": self.failure_detail, "business_outcome": None,
                 "outputs": {
                     "confirmation_text": self.outputs.confirmation_text,
                     "new_balance": self.outputs.new_balance, "transaction_id": self.outputs.transaction_id,
@@ -96,6 +96,35 @@ def test_replay_output_is_redacted_before_printing(monkeypatch, capsys):
     assert code == 0
     assert "12345" not in out and "67890" not in out and "998877" not in out
     assert "[REDACTED]" in out
+
+
+def test_replay_prints_business_outcome_when_present(monkeypatch, capsys):
+    # Regression: status alone ("BUSINESS_OUTCOME") tells an operator nothing about *why* — a
+    # live invalid_account run showed only that, with the classification itself never printed.
+    set_env(monkeypatch)
+    monkeypatch.setattr("cua.adapter.PlaywrightAdapter.start", lambda _self: None)
+    monkeypatch.setattr("cua.adapter.PlaywrightAdapter.close", lambda _self: None)
+
+    class FakeResult:
+        run_id = "x"
+        status = Outcome.BUSINESS_OUTCOME
+        llm_calls = 0
+        failure_detail = None
+        outputs = None
+        business_outcome = "invalid_account"
+
+        def model_dump(self, mode="json"):
+            return {
+                "run_id": self.run_id, "status": self.status.value, "llm_calls": self.llm_calls,
+                "failure_detail": self.failure_detail, "outputs": None,
+                "business_outcome": self.business_outcome, "escalations": [],
+            }
+
+    monkeypatch.setattr("cua.replay.ReplayEngine.replay", lambda self, *a, **k: FakeResult())
+    code = main(["replay", "--goal", SPEC_PATH, "--capability", CAP_PATH, *PARAMS])
+    out = capsys.readouterr().out
+    assert code == 1  # BUSINESS_OUTCOME is not SUCCESS
+    assert "business_outcome: invalid_account" in out
 
 
 def test_a_live_run_without_credentials_stops_before_a_browser_opens(monkeypatch, capsys):

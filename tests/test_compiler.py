@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from cua.compiler import CompileError, compile_capability
-from cua.enums import StopReason
+from cua.enums import Outcome, StopReason
 from cua.goal import GoalSpec
 from cua.models import Condition, Locator, LocatorCandidate
 from cua.trace import DiscoveryResult, TraceStep
@@ -292,9 +292,23 @@ def test_select_steps_get_an_option_present_wait_strategy():
     assert select_steps and all(s.wait_strategy.kind == "option_present" for s in select_steps)
 
 
-def test_error_mapping_is_always_empty_in_this_phase():
+def test_error_mapping_maps_a_missing_dropdown_option_to_invalid_account():
+    # Phase 6: a select step's option_present wait timing out is exactly how a nonexistent
+    # account shows up on this app (a dropdown, not free text — recon confirmed there is no
+    # error page for this). Every other step still carries no mapping; nothing else is known yet.
     cap = compiled()
-    assert all(s.error_mapping == [] for s in cap.steps)
+    select_steps = [s for s in cap.steps if s.action == "select"]
+    non_select_steps = [s for s in cap.steps if s.action != "select"]
+    assert select_steps and all(s.error_mapping for s in select_steps)
+    for s in select_steps:
+        assert len(s.error_mapping) == 1
+        mapping = s.error_mapping[0]
+        assert mapping.outcome == Outcome.BUSINESS_OUTCOME
+        assert mapping.detail == "invalid_account"
+        assert mapping.when.kind == "option_present"
+        assert mapping.when.target == s.wait_strategy.target
+        assert mapping.when.value == s.wait_strategy.value
+    assert all(s.error_mapping == [] for s in non_select_steps)
 
 
 def test_outputs_contract_excludes_policy_only_extracts():

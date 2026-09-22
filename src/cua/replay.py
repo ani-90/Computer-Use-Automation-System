@@ -1,11 +1,16 @@
-"""Replay Engine: runs a compiled Capability with no LLM. Happy-path core (Phase 5), plus the
-primary escalation trigger (Phase 7): a supervisor approving an over-threshold amount.
+"""Replay Engine: runs a compiled Capability with no LLM. Happy-path core (Phase 5), the primary
+escalation trigger (Phase 7: a supervisor approving an over-threshold amount), and error
+classification (Phase 6): a known failure — a rejected login, an account missing from a
+dropdown — is looked up in error_mapping and reported as the real answer it is (BUSINESS_OUTCOME),
+not a generic crash; an unmatched failure gets one auth probe (navigate to a known-authenticated
+page) before being called a genuine HARD_FAILURE, in case it is only a session expiring. Recovery
+here means correct classification, not an automatic re-run from scratch: a caller who sees
+RECOVERABLE knows it is safe and cheap to just call replay() again.
 
-Error classification beyond "checkpoint failed" (the auth probe, session-expiry recovery,
-error_mapping content) is Phase 6. The secondary escalation trigger (an ambiguous post-submit
-state) is Phase 9, a stretch goal — not here. With no `on_escalate` callback supplied, an
-ESCALATE verdict still falls back to today's placeholder: treated as a block, since there is
-genuinely no one to hand off to (matches Discovery's own behavior with no human available).
+The secondary escalation trigger (an ambiguous post-submit state) is Phase 9, a stretch goal —
+not here. With no `on_escalate` callback supplied, an ESCALATE verdict still falls back to
+today's placeholder: treated as a block, since there is genuinely no one to hand off to (matches
+Discovery's own behavior with no human available).
 
 Login is not part of the compiled artifact (see compiler.py's docstring): it is a fixed,
 hand-authored, checkpoint-verified prelude, run through the same adapter and gate as everything
@@ -22,7 +27,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from typing import Any, Literal
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 from cua import escalation
 from cua.adapter import Action, ActionFailed, LocatorNotFound
@@ -76,6 +81,16 @@ _LOGIN_CHECK = [
         ),
     ),
 ]
+# Confirmed live (scratch/probe_bad_login.py against the real site): a wrong password lands on
+# /parabank/login.htm with this exact paragraph — not a generic failure, a real answer.
+_LOGIN_REJECTED = Condition(
+    kind="element_visible",
+    target=Locator(
+        description='paragraph "The username and password could not be verified."',
+        chain=[LocatorCandidate(strategy="text", value="The username and password could not be verified.")],
+    ),
+)
+_OVERVIEW_PATH = "/parabank/overview.htm"
 
 
 class ReplayError(Exception):
@@ -119,9 +134,9 @@ class ReplayEngine:
         except ActionFailed as e:
             return self._finish(run_id, self._fail(run_id, Outcome.HARD_FAILURE, -1, "start page reachable", str(e)))
 
-        prelude_problem = self._login(secrets)
-        if prelude_problem:
-            return self._finish(run_id, self._fail(run_id, Outcome.HARD_FAILURE, -1, *prelude_problem))
+        prelude_problem = self._login(run_id, secrets)
+        if prelude_problem is not None:
+            return self._finish(run_id, prelude_problem)
 
         balance: Decimal | None = None
         collected: dict[str, str] = {}
@@ -168,7 +183,10 @@ class ReplayEngine:
                 timeout_obs = self.adapter.observe()
                 self._record(i, "step", step, params, gate_record, precondition_status, "timed_out", "n/a",
                              "error", f"wait {step.wait_strategy.kind} timed out", timeout_obs.url, timeout_obs)
-                return self._finish(run_id, self._fail(run_id, Outcome.HARD_FAILURE, i, f"wait {step.wait_strategy.kind}", "timed out"))
+                result = self._classified_failure(
+                    run_id, i, step, self._wait_condition(step.wait_strategy), f"wait {step.wait_strategy.kind}"
+                )
+                return self._finish(run_id, result)
             wait_status: Literal["ok", "timed_out", "n/a"] = "ok" if pre_wait else "n/a"
 
             if human_did_it:
@@ -186,7 +204,10 @@ class ReplayEngine:
                 timeout_obs = self.adapter.observe()
                 self._record(i, "step", step, params, gate_record, precondition_status, "timed_out", "n/a",
                              "error", f"wait {step.wait_strategy.kind} timed out", timeout_obs.url, timeout_obs)
-                return self._finish(run_id, self._fail(run_id, Outcome.HARD_FAILURE, i, f"wait {step.wait_strategy.kind}", "timed out"))
+                result = self._classified_failure(
+                    run_id, i, step, self._wait_condition(step.wait_strategy), f"wait {step.wait_strategy.kind}"
+                )
+                return self._finish(run_id, result)
             wait_status = "ok"
 
             after = self.adapter.observe()
@@ -197,14 +218,17 @@ class ReplayEngine:
                 if not checkpoint_ok:
                     self._record(i, "step", step, params, gate_record, precondition_status, wait_status,
                                  checkpoint_status, "error", f"shape {shape} not met", after.url, after, extracted)
-                    return self._finish(run_id, self._fail(run_id, Outcome.HARD_FAILURE, i, f"shape {shape}", str(extracted)))
+                    failed_shape = step.checkpoint[0] if step.checkpoint else None
+                    result = self._classified_failure(run_id, i, step, failed_shape, f"shape {shape}")
+                    return self._finish(run_id, result)
             else:
                 failed = next((c for c in step.checkpoint if not evaluate(c, self.adapter, after, params)), None)
                 checkpoint_status = "n/a" if not step.checkpoint else ("failed" if failed else "ok")
                 if failed is not None:
                     self._record(i, "step", step, params, gate_record, precondition_status, wait_status,
                                  checkpoint_status, "error", f"checkpoint {failed.kind} not met", after.url, after)
-                    return self._finish(run_id, self._fail(run_id, Outcome.HARD_FAILURE, i, f"checkpoint {failed.kind}", "not met"))
+                    result = self._classified_failure(run_id, i, step, failed, f"checkpoint {failed.kind}")
+                    return self._finish(run_id, result)
 
             self._record(i, "step", step, params, gate_record, precondition_status, wait_status,
                          checkpoint_status, "ok", None, after.url, after, extracted)
@@ -266,6 +290,48 @@ class ReplayEngine:
                      "ok", "n/a", "n/a", "blocked", reason, obs.url, obs)
         return self._fail(run_id, Outcome.POLICY_BLOCK, i, "a captured approval click", reason)
 
+    # -- error classification (Phase 6) ---------------------------------
+
+    def _classify(self, step: Step, failed: Condition) -> tuple[Outcome, str | None] | None:
+        """A known condition, already seen live and mapped at compile time — not a guess.
+        `failed` is the exact, still-placeholder-bearing Condition object that didn't hold,
+        compared directly against each mapping's own `when` (built the same way), so this is an
+        exact match, never a fuzzy one."""
+        for mapping in step.error_mapping:
+            if mapping.when == failed:
+                return mapping.outcome, mapping.detail
+        return None
+
+    def _probe_session(self) -> bool:
+        """True if still authenticated. Navigates to a known-authenticated page; landing there
+        for real means the failure was genuine, landing on the login page instead means the
+        session simply expired — the automation's own identity, not the caller's."""
+        try:
+            before = self.adapter.observe().url
+            self.adapter.navigate(urljoin(before, _OVERVIEW_PATH))
+        except ActionFailed:
+            return True  # can't tell from a failed navigation; don't claim expiry on a guess
+        return urlparse(self.adapter.observe().url).path == _OVERVIEW_PATH
+
+    def _wait_condition(self, ws: WaitStrategy) -> Condition | None:
+        """The Condition an error_mapping entry would need to match, for a wait that timed out
+        (only option_present is ever mapped today — a dropdown option that never appeared)."""
+        if ws.kind == "option_present":
+            return Condition(kind="option_present", target=ws.target, value=ws.value)
+        return None
+
+    def _classified_failure(
+        self, run_id: str, i: int, step: Step, failed: Condition | None, expected: str,
+    ) -> ReplayResult:
+        if failed is not None:
+            classified = self._classify(step, failed)
+            if classified is not None:
+                outcome, detail = classified
+                return self._outcome(run_id, outcome, business_outcome=detail)
+        if self._probe_session():
+            return self._fail(run_id, Outcome.HARD_FAILURE, i, expected, "not met")
+        return self._outcome(run_id, Outcome.RECOVERABLE, business_outcome="session_expired")
+
     # -- steps ---------------------------------------------------------
 
     def _execute(self, step: Step, params: Mapping[str, str]) -> str | None:
@@ -313,7 +379,8 @@ class ReplayEngine:
                 return False
             time.sleep(_POLL_S)
 
-    def _login(self, secrets: Mapping[str, str]) -> tuple[str, str] | None:
+    def _login(self, run_id: str, secrets: Mapping[str, str]) -> ReplayResult | None:
+        """None means: logged in, the caller proceeds. Otherwise, the terminal result."""
         if self.logger is not None:
             self.logger.write_bytes("prelude-00.png", self.adapter.observe().masked_screenshot)
         for n, (locator, value) in enumerate(((_USERNAME, secrets["username"]), (_PASSWORD, secrets["password"]))):
@@ -324,7 +391,7 @@ class ReplayEngine:
                 block_obs = self.adapter.observe()
                 self._record(n, "prelude", None, {}, gate_record, "n/a", "n/a", "n/a", "blocked", decision.reason,
                              url, block_obs, action="type", target_desc=locator.description)
-                return ("policy allow", decision.reason)
+                return self._fail(run_id, Outcome.POLICY_BLOCK, -1, "policy allow", decision.reason)
             try:
                 handle = self.adapter.resolve(locator)
                 self.adapter.act(handle, Action("type", value))
@@ -332,7 +399,7 @@ class ReplayEngine:
                 error_obs = self.adapter.observe()
                 self._record(n, "prelude", None, {}, gate_record, "n/a", "n/a", "n/a", "error", str(e),
                              error_obs.url, error_obs, action="type", target_desc=locator.description)
-                return ("login field present", str(e))
+                return self._fail(run_id, Outcome.HARD_FAILURE, -1, "login field present", str(e))
             self._record(n, "prelude", None, {}, gate_record, "n/a", "n/a", "n/a", "ok", None, url, None,
                          action="type", target_desc=locator.description)
         try:
@@ -342,7 +409,7 @@ class ReplayEngine:
             error_obs = self.adapter.observe()
             self._record(2, "prelude", None, {}, None, "n/a", "n/a", "n/a", "error", str(e),
                          error_obs.url, error_obs, action="click", target_desc=_LOG_IN.description)
-            return ("Log In button present", str(e))
+            return self._fail(run_id, Outcome.HARD_FAILURE, -1, "Log In button present", str(e))
         obs = self.adapter.observe()
         unmet = next((c for c in _LOGIN_CHECK if not evaluate(c, self.adapter, obs, {})), None)
         checkpoint_status: Literal["ok", "failed"] = "failed" if unmet is not None else "ok"
@@ -350,7 +417,9 @@ class ReplayEngine:
                      "error" if unmet else "ok", f"login {unmet.kind} not met" if unmet else None, obs.url, obs,
                      action="click", target_desc=_LOG_IN.description)
         if unmet is not None:
-            return (f"login {unmet.kind}", "not met after Log In")
+            if evaluate(_LOGIN_REJECTED, self.adapter, obs, {}):
+                return self._outcome(run_id, Outcome.BUSINESS_OUTCOME, business_outcome="login_rejected")
+            return self._fail(run_id, Outcome.HARD_FAILURE, -1, f"login {unmet.kind}", "not met after Log In")
         return None
 
     # -- evidence --------------------------------------------------------
@@ -386,12 +455,19 @@ class ReplayEngine:
             return None
         return Decimal(params[capability.amount_input])
 
-    def _fail(self, run_id: str, status: Outcome, step_index: int, expected: str, observed: str) -> ReplayResult:
+    def _outcome(
+        self, run_id: str, status: Outcome, business_outcome: str | None = None,
+        failure_detail: FailureDetail | None = None,
+    ) -> ReplayResult:
         return ReplayResult(
-            run_id=run_id, status=status,
-            failure_detail=FailureDetail(step_index=step_index, expected=expected, observed=observed),
-            escalations=self._escalations,
+            run_id=run_id, status=status, business_outcome=business_outcome,
+            failure_detail=failure_detail, escalations=self._escalations,
         )
+
+    def _fail(self, run_id: str, status: Outcome, step_index: int, expected: str, observed: str) -> ReplayResult:
+        return self._outcome(run_id, status, failure_detail=FailureDetail(
+            step_index=step_index, expected=expected, observed=observed,
+        ))
 
 
 def _matches_target(target, captured: list[dict]) -> bool:

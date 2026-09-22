@@ -1,0 +1,9 @@
+{
+  "run_id": "7f0b5cf0-471f-48bf-bb32-6dfc34570fce",
+  "status": "BUSINESS_OUTCOME",
+  "outputs": null,
+  "business_outcome": "login_rejected",
+  "failure_detail": null,
+  "escalations": [],
+  "llm_calls": 0
+}

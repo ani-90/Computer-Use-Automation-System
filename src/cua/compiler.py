@@ -17,11 +17,12 @@ number of secret fields, not just the two ParaBank happens to have.
 import re
 from typing import Literal
 
-from cua.enums import StopReason
+from cua.enums import Outcome, StopReason
 from cua.goal import GoalSpec
 from cua.models import (
     Capability,
     Condition,
+    ErrorMapping,
     Locator,
     LocatorCandidate,
     ParamSpec,
@@ -230,6 +231,17 @@ def _extract_as(ts: TraceStep, balance_extract: str) -> Literal[
     return None  # an extract whose value this capability never keeps
 
 
+def _error_mapping(wait_strategy: WaitStrategy) -> list[ErrorMapping]:
+    # A dropdown whose expected option never appears is exactly how an account that doesn't
+    # exist shows up on this app (confirmed in recon: the field is a dropdown, not free text —
+    # there is no error page for this, only a missing option). The `when` reuses the same
+    # target/value the wait already carries, so it matches the wait's own timeout exactly.
+    if wait_strategy.kind == "option_present":
+        when = Condition(kind="option_present", target=wait_strategy.target, value=wait_strategy.value)
+        return [ErrorMapping(when=when, outcome=Outcome.BUSINESS_OUTCOME, detail="invalid_account")]
+    return []
+
+
 def _to_step(
     ts: TraceStep, precondition: list[Condition], tag_map: dict[str, str], balance_extract: str,
     is_submission: bool,
@@ -237,14 +249,15 @@ def _to_step(
     action: Literal["click", "type", "select", "navigate", "extract"] = ts.tool  # type: ignore[assignment]
     target = _param_locator(ts.target, tag_map) if ts.target else _no_target_error(ts)
     checkpoint = [_param_condition(c, tag_map) for c in ts.checkpoint]
+    wait_strategy = _wait_strategy(ts, target)
     return Step(
         precondition=[_param_condition(c, tag_map) for c in precondition],
         action=action,
         target=target,
         parameters=_parameters(ts),
-        wait_strategy=_wait_strategy(ts, target),
+        wait_strategy=wait_strategy,
         checkpoint=checkpoint,
-        error_mapping=[],  # real content comes from the Phase 6 probes
+        error_mapping=_error_mapping(wait_strategy),
         extract_as=_extract_as(ts, balance_extract),
         is_submission=is_submission,
     )

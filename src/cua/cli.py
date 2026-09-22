@@ -157,6 +157,8 @@ def _run_replay(capability_path: str, goal_path: str, raw_params: list[str]) -> 
         )
     summary = redactor.redact(result.model_dump(mode="json"))
     print(f"\nstatus: {summary['status']}")
+    if summary.get("business_outcome"):
+        print(f"business_outcome: {summary['business_outcome']}")
     print(f"llm_calls: {summary['llm_calls']}")
     if summary["outputs"]:
         print(f"  confirmation_text: {summary['outputs']['confirmation_text']}")

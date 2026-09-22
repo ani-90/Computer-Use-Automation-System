@@ -12,6 +12,7 @@ from cua.enums import Outcome
 from cua.models import (
     Capability,
     Condition,
+    ErrorMapping,
     Locator,
     LocatorCandidate,
     Step,
@@ -39,12 +40,16 @@ class Handle:
 class SlowDropdownBank:
     """Login works immediately; the combobox on the next page gains its options gradually."""
 
-    def __init__(self, ready_after: int | None = 2):
+    def __init__(self, ready_after: int | None = 2, session_expired: bool = False):
         self.page = "login"
         self.fields: dict[str, str] = {}
         self.observe_calls_on_page2 = 0
         self.ready_after = ready_after  # None = never becomes ready
         self.selected: str | None = None
+        # when True, even the auth probe's own known-authenticated target lands back on login —
+        # models a session that expired mid-run, distinct from a genuine, still-authenticated
+        # failure.
+        self.session_expired = session_expired
 
     @property
     def url(self) -> str:
@@ -53,7 +58,10 @@ class SlowDropdownBank:
         return "http://h/parabank/index.htm" if self.page == "login" else "http://h/parabank/overview.htm"
 
     def navigate(self, target: str) -> None:
-        self.page = "login"
+        if target.endswith("overview.htm"):
+            self.page = "login" if self.session_expired else "page2"  # the auth probe's target
+        else:
+            self.page = "login"
 
     def _options(self) -> tuple[str, ...]:
         if self.ready_after is None:
@@ -110,7 +118,7 @@ class SlowDropdownBank:
         return None
 
 
-def _capability(timeout_ms: int) -> Capability:
+def _capability(timeout_ms: int, error_mapping: list[ErrorMapping] | None = None) -> Capability:
     target = unnamed("combobox", "Pick", 0)
     step = Step(
         precondition=[],
@@ -119,7 +127,7 @@ def _capability(timeout_ms: int) -> Capability:
         parameters={"value": "B"},
         wait_strategy=WaitStrategy(kind="option_present", target=target, value="B", timeout_ms=timeout_ms),
         checkpoint=[Condition(kind="option_selected", target=target, value="B")],
-        error_mapping=[],
+        error_mapping=error_mapping or [],
     )
     return Capability(
         schema_version="1.0", version="1", name="wait_test",
@@ -145,3 +153,35 @@ def test_a_wait_that_never_becomes_ready_times_out_as_a_hard_failure_not_a_hang(
     assert result.failure_detail.step_index == 0
     assert "wait" in result.failure_detail.expected
     assert fake.selected is None  # never attempted the select with a stale option list
+
+
+def test_a_dropdown_option_that_never_appears_is_classified_as_invalid_account():
+    # Same timeout as the plain hard-failure case above, but this step's error_mapping (as the
+    # compiler emits for every select step) recognizes the exact timed-out condition — so the
+    # engine classifies it as a business outcome instead of a generic, unexplained failure.
+    fake = SlowDropdownBank(ready_after=None)
+    target = unnamed("combobox", "Pick", 0)
+    mapping = [
+        ErrorMapping(
+            when=Condition(kind="option_present", target=target, value="B"),
+            outcome=Outcome.BUSINESS_OUTCOME,
+            detail="invalid_account",
+        )
+    ]
+    result = ReplayEngine(fake, PolicyGate(Config())).replay(
+        _capability(timeout_ms=300, error_mapping=mapping), {}, SECRETS, "http://h/parabank/index.htm"
+    )
+    assert result.status == Outcome.BUSINESS_OUTCOME
+    assert result.business_outcome == "invalid_account"
+
+
+def test_a_genuinely_expired_session_is_classified_as_recoverable_not_a_hard_failure():
+    # No error_mapping matches this timeout, so the engine falls back to the auth probe. Here the
+    # probe's own navigation lands back on login — the session expired mid-run, not a real defect
+    # — so the outcome is RECOVERABLE (safe and cheap to just replay again), not HARD_FAILURE.
+    fake = SlowDropdownBank(ready_after=None, session_expired=True)
+    result = ReplayEngine(fake, PolicyGate(Config())).replay(
+        _capability(timeout_ms=300), {}, SECRETS, "http://h/parabank/index.htm"
+    )
+    assert result.status == Outcome.RECOVERABLE
+    assert result.business_outcome == "session_expired"

@@ -76,6 +76,8 @@ class FakeBank:
         self.opened_details = False
         self.owner = "agent"
         self.pending_captures: list[dict] = []
+        self.session_expired = False  # when True, even a known-authenticated page redirects to login
+        self.login_failed = False  # set on a rejected Log In click; models the real error page
 
     @property
     def url(self) -> str:
@@ -87,7 +89,14 @@ class FakeBank:
         return BASE.replace("/parabank", "") + page_paths[self.page]
 
     def navigate(self, target: str) -> None:
-        self.page = "login"
+        from urllib.parse import urlparse
+
+        path = urlparse(target).path
+        if path.endswith("overview.htm"):
+            self.page = "login" if self.session_expired else "overview"
+        elif path.endswith("index.htm"):
+            self.page = "login"
+        # else: an unrecognized target — leave the current page as-is
 
     # -- element model, rebuilt fresh each observe() -----------------------
     def _candidates(self) -> list[tuple]:
@@ -111,6 +120,12 @@ class FakeBank:
         return []
 
     def _texts(self) -> list[tuple]:
+        if self.page == "login" and self.login_failed:
+            # Confirmed live via scratch/probe_bad_login.py against the real site.
+            return [
+                ("heading", "Error!"),
+                ("paragraph", "The username and password could not be verified."),
+            ]
         if self.page == "overview":
             return [
                 ("heading", "Account Services"), ("heading", "Accounts Overview"),
@@ -244,6 +259,7 @@ class FakeBank:
         if key == "Log In":
             ok = self.fields.get("Username") == SECRETS["username"] and self.fields.get("Password") == SECRETS["password"]
             self.page = "overview" if ok else "login"
+            self.login_failed = not ok
         elif key == "Transfer Funds":
             self.page = "transfer"
         elif key == "Transfer":
@@ -361,12 +377,14 @@ def test_amount_over_threshold_is_policy_blocked_with_no_escalation_path_yet():
     assert fake.selected.get("to account #") == TO
 
 
-def test_a_failed_checkpoint_with_no_error_mapping_is_a_hard_failure():
+def test_wrong_credentials_are_classified_as_a_login_rejected_business_outcome():
+    # Confirmed live via scratch/probe_bad_login.py: a wrong password lands back on the login
+    # page with a real, recognizable rejection message — not a generic, unclassified failure.
     fake = FakeBank()
     bad_secrets = {"username": "wrong", "password": "wrong"}
     result = ReplayEngine(fake, PolicyGate(Config())).replay(capability(), PARAMS, bad_secrets, BASE + "/index.htm")
-    assert result.status == Outcome.HARD_FAILURE
-    assert result.failure_detail.step_index == -1
+    assert result.status == Outcome.BUSINESS_OUTCOME
+    assert result.business_outcome == "login_rejected"
 
 
 def test_a_missing_element_is_a_hard_failure_not_a_crash():

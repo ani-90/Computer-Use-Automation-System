@@ -1,0 +1,9 @@
+{
+  "run_id": "2082c058-e406-4fb6-8d9e-46671e1200e4",
+  "status": "BUSINESS_OUTCOME",
+  "outputs": null,
+  "business_outcome": "invalid_account",
+  "failure_detail": null,
+  "escalations": [],
+  "llm_calls": 0
+}
