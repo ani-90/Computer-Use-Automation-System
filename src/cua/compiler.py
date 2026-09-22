@@ -47,10 +47,12 @@ def compile_capability(result: DiscoveryResult, spec: GoalSpec) -> Capability:
     last_extract_at = _last_extract_index(ok_steps)
     literal_to_placeholder = _tag_map(ok_steps)
 
+    amount_placeholder = f"{{{{{spec.amount_input}}}}}"
     steps: list[Step] = []
     prev_checkpoint: list[Condition] = []
     since_nav: list[Condition] = []
     prev_url: str | None = None
+    submission_marked = False
 
     for i, ts in enumerate(ok_steps):
         emit = i >= prelude_end and not (
@@ -58,7 +60,21 @@ def compile_capability(result: DiscoveryResult, spec: GoalSpec) -> Capability:
         )
         if emit:
             precondition = _dedupe(prev_checkpoint + since_nav)
-            steps.append(_to_step(ts, precondition, literal_to_placeholder, spec.balance_extract))
+            # The first click/navigate whose precondition already asserts the amount is set is
+            # the one action that actually moves money — the same "first submit" idea Discovery's
+            # own guard already uses, so escalation (Phase 7) gates only that one step, not every
+            # click that happens to follow the amount being typed (e.g. a later, read-only search
+            # reusing the same value).
+            is_submission = (
+                not submission_marked
+                and ts.tool in {"click", "navigate"}
+                and any(c.kind == "field_value_equals" and c.value == amount_placeholder for c in precondition)
+            )
+            if is_submission:
+                submission_marked = True
+            steps.append(
+                _to_step(ts, precondition, literal_to_placeholder, spec.balance_extract, is_submission)
+            )
 
         if ts.tool in _FIELD_TOOLS:
             since_nav = _dedupe(since_nav + ts.checkpoint)
@@ -215,7 +231,8 @@ def _extract_as(ts: TraceStep, balance_extract: str) -> Literal[
 
 
 def _to_step(
-    ts: TraceStep, precondition: list[Condition], tag_map: dict[str, str], balance_extract: str
+    ts: TraceStep, precondition: list[Condition], tag_map: dict[str, str], balance_extract: str,
+    is_submission: bool,
 ) -> Step:
     action: Literal["click", "type", "select", "navigate", "extract"] = ts.tool  # type: ignore[assignment]
     target = _param_locator(ts.target, tag_map) if ts.target else _no_target_error(ts)
@@ -229,6 +246,7 @@ def _to_step(
         checkpoint=checkpoint,
         error_mapping=[],  # real content comes from the Phase 6 probes
         extract_as=_extract_as(ts, balance_extract),
+        is_submission=is_submission,
     )
 
 

@@ -168,7 +168,8 @@
         }
       ],
       "error_mapping": [],
-      "extract_as": "policy_balance"
+      "extract_as": "policy_balance",
+      "is_submission": false
     },
     {
       "precondition": [
@@ -277,7 +278,8 @@
           "value": null
         }
       ],
-      "error_mapping": []
+      "error_mapping": [],
+      "is_submission": false
     },
     {
       "precondition": [
@@ -392,7 +394,8 @@
           "value": "{{amount}}"
         }
       ],
-      "error_mapping": []
+      "error_mapping": [],
+      "is_submission": false
     },
     {
       "precondition": [
@@ -468,7 +471,8 @@
           "value": "{{from_account}}"
         }
       ],
-      "error_mapping": []
+      "error_mapping": [],
+      "is_submission": false
     },
     {
       "precondition": [
@@ -561,7 +565,8 @@
           "value": "{{to_account}}"
         }
       ],
-      "error_mapping": []
+      "error_mapping": [],
+      "is_submission": false
     },
     {
       "precondition": [
@@ -745,7 +750,8 @@
           "value": null
         }
       ],
-      "error_mapping": []
+      "error_mapping": [],
+      "is_submission": true
     },
     {
       "precondition": [
@@ -888,7 +894,8 @@
         }
       ],
       "error_mapping": [],
-      "extract_as": "confirmation_text"
+      "extract_as": "confirmation_text",
+      "is_submission": false
     },
     {
       "precondition": [
@@ -1013,7 +1020,8 @@
           "value": null
         }
       ],
-      "error_mapping": []
+      "error_mapping": [],
+      "is_submission": false
     },
     {
       "precondition": [
@@ -1143,7 +1151,8 @@
         }
       ],
       "error_mapping": [],
-      "extract_as": "new_balance"
+      "extract_as": "new_balance",
+      "is_submission": false
     },
     {
       "precondition": [
@@ -1252,7 +1261,8 @@
           "value": null
         }
       ],
-      "error_mapping": []
+      "error_mapping": [],
+      "is_submission": false
     },
     {
       "precondition": [
@@ -1367,7 +1377,8 @@
           "value": "{{amount}}"
         }
       ],
-      "error_mapping": []
+      "error_mapping": [],
+      "is_submission": false
     },
     {
       "precondition": [
@@ -1443,7 +1454,8 @@
           "value": "{{from_account}}"
         }
       ],
-      "error_mapping": []
+      "error_mapping": [],
+      "is_submission": false
     },
     {
       "precondition": [
@@ -1593,7 +1605,8 @@
           "value": null
         }
       ],
-      "error_mapping": []
+      "error_mapping": [],
+      "is_submission": false
     },
     {
       "precondition": [
@@ -1727,7 +1740,8 @@
           "value": null
         }
       ],
-      "error_mapping": []
+      "error_mapping": [],
+      "is_submission": false
     },
     {
       "precondition": [
@@ -1807,7 +1821,8 @@
         }
       ],
       "error_mapping": [],
-      "extract_as": "transaction_id"
+      "extract_as": "transaction_id",
+      "is_submission": false
     }
   ],
   "amount_input": "amount",

@@ -102,6 +102,10 @@ class Step(_Strict):
     # balance read (never a declared output). None for every other action and for an extract
     # whose value isn't kept at all.
     extract_as: Literal["confirmation_text", "new_balance", "transaction_id", "policy_balance"] | None = None
+    # True on exactly one step: the first click/navigate whose precondition already asserts the
+    # amount is set — the one action that actually moves money. Not every click that happens to
+    # follow the amount being typed (e.g. a later read-only search reusing the same value).
+    is_submission: bool = False
 
 
 class ParamSpec(_Strict):

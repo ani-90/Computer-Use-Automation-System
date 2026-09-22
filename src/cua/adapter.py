@@ -8,7 +8,7 @@ from dataclasses import dataclass, field, replace
 from typing import Literal, Self
 from urllib.parse import urljoin
 
-from playwright.sync_api import Browser, Page, Playwright, Request, sync_playwright
+from playwright.sync_api import Browser, BrowserContext, Page, Playwright, Request, sync_playwright
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Locator as PWLocator
 
@@ -28,6 +28,31 @@ _URL_ROW = re.compile(r"^\s*- /url: (?P<url>\S+)")
 _TEXT_INPUTS = {"textbox", "searchbox", "spinbutton"}
 _SETTLE_POLL_MS = 300
 _SETTLE_TIMEOUT_S = 5.0
+
+# Registered once, at context creation, so it is already present and dormant on whatever page
+# is loaded when a human handoff happens — no race to inject it at that moment. It only ever
+# records while the owner flag says "human"; the agent's own clicks are never captured. Kept in
+# sessionStorage, not a plain window variable, so both the flag and the buffer survive a
+# navigation during the takeover (window globals reset on every page load; sessionStorage does
+# not, for the lifetime of the tab).
+_CAPTURE_SCRIPT = """
+(() => {
+  const OWNER = "__cua_owner", ACTIONS = "__cua_actions";
+  if (!sessionStorage.getItem(OWNER)) sessionStorage.setItem(OWNER, "agent");
+  if (!sessionStorage.getItem(ACTIONS)) sessionStorage.setItem(ACTIONS, "[]");
+  document.addEventListener("click", (e) => {
+    if (sessionStorage.getItem(OWNER) !== "human") return;
+    const t = e.target;
+    const actions = JSON.parse(sessionStorage.getItem(ACTIONS) || "[]");
+    actions.push({
+      tag: t.tagName || "",
+      text: (t.innerText || t.value || "").slice(0, 100),
+      url: location.href,
+    });
+    sessionStorage.setItem(ACTIONS, JSON.stringify(actions));
+  }, true);
+})();
+"""
 
 
 class LocatorNotFound(Exception):
@@ -185,13 +210,16 @@ class PlaywrightAdapter:
         self._secrets = {s for s in secrets if s}  # values that must never enter a candidate
         self._pw: Playwright | None = None
         self._browser: Browser | None = None
+        self._context: BrowserContext | None = None
         self._page: Page | None = None
         self._inflight: set[Request] = set()
 
     def start(self) -> None:
         self._pw = sync_playwright().start()
         self._browser = self._pw.chromium.launch(headless=False)  # always headed
-        self._page = self._browser.new_context().new_page()
+        self._context = self._browser.new_context()
+        self._context.add_init_script(_CAPTURE_SCRIPT)  # at context creation, not at handoff time
+        self._page = self._context.new_page()
         self._page.set_default_timeout(self._timeout)
         self._page.on("request", self._track)
         self._page.on("requestfinished", self._untrack)
@@ -202,6 +230,17 @@ class PlaywrightAdapter:
             self._browser.close()
         if self._pw:
             self._pw.stop()
+
+    def set_session_owner(self, owner: Literal["agent", "human"]) -> None:
+        page = self._require_page()
+        page.evaluate("(o) => sessionStorage.setItem('__cua_owner', o)", owner)
+
+    def captured_actions(self) -> list[dict]:
+        """Whatever was captured while the owner was "human", then clears the buffer."""
+        page = self._require_page()
+        actions = page.evaluate("JSON.parse(sessionStorage.getItem('__cua_actions') || '[]')")
+        page.evaluate("sessionStorage.setItem('__cua_actions', '[]')")
+        return actions
 
     def __enter__(self) -> Self:
         self.start()

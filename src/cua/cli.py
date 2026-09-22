@@ -142,8 +142,19 @@ def _run_replay(capability_path: str, goal_path: str, raw_params: list[str]) -> 
     logger = EvidenceLogger(new_run_id(), redactor, base_dir=Path("evidence") / "replay")
     print("LIVE REPLAY: no LLM is called; this may move money in the sandbox.")
     print(f"evidence: {logger.dir}")
+
+    def on_escalate(ticket):
+        print(f"\n=== ESCALATION: {ticket.reason} ===")
+        print(f"ticket: {ticket.ticket_id} (see {logger.dir / f'ticket-{ticket.ticket_id}.json'})")
+        print("The browser is now yours. To APPROVE: click Transfer yourself, then press Enter.")
+        print("To REJECT: type 'reject' then press Enter — Transfer will never be clicked.")
+        answer = input("> ").strip().lower()
+        return "reject" if answer == "reject" else "approve"
+
     with PlaywrightAdapter(config, logger, secrets=list(secrets.values())) as adapter:
-        result = ReplayEngine(adapter, PolicyGate(config), logger).replay(capability, params, secrets, start_url)
+        result = ReplayEngine(adapter, PolicyGate(config), logger).replay(
+            capability, params, secrets, start_url, on_escalate
+        )
     summary = redactor.redact(result.model_dump(mode="json"))
     print(f"\nstatus: {summary['status']}")
     print(f"llm_calls: {summary['llm_calls']}")
@@ -154,6 +165,8 @@ def _run_replay(capability_path: str, goal_path: str, raw_params: list[str]) -> 
     if summary["failure_detail"]:
         fd = summary["failure_detail"]
         print(f"  failure at step {fd['step_index']}: expected {fd['expected']!r}, observed {fd['observed']!r}")
+    for esc in summary["escalations"]:
+        print(f"  escalation {esc['ticket_id']}: {esc['decision']} ({esc['reason']})")
     return 0 if result.status == Outcome.SUCCESS else 1
 
 

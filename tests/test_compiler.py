@@ -227,6 +227,30 @@ def test_a_parameter_typed_in_two_different_literal_forms_does_not_swallow_page_
     assert AMOUNT not in sentence_cond.target.description.replace("{{amount}}", "")
 
 
+def test_only_the_first_submission_click_is_marked_not_a_later_search_reusing_the_amount():
+    # Regression: a later, read-only click (e.g. the Find Transactions search button) also
+    # follows the amount being typed again — it must NOT also be marked is_submission, or
+    # escalation (Phase 7) would wrongly gate a harmless search the same as the real transfer.
+    trace = build_trace()
+    retyped = ts(
+        18, tool="type", provenance="parameter", param="amount", value=AMOUNT,
+        target=named("textbox", "Find by Amount:"),
+        checkpoint=[Condition(
+            kind="field_value_equals", target=named("textbox", "Find by Amount:"), value="{{amount}}",
+        )],
+    )
+    search_click = ts(19, tool="click", target=named("button", "Find Transactions"), checkpoint=[
+        Condition(kind="element_visible", target=heading("Transaction Results")),
+    ])
+    trace.insert(-1, search_click)
+    trace.insert(-2, retyped)
+    result = DiscoveryResult(run_id="z", stop_reason=StopReason.SUCCESS, steps=trace)
+    cap = compile_capability(result, spec())
+    marked = [s for s in cap.steps if s.is_submission]
+    assert len(marked) == 1
+    assert marked[0].target.description == 'button "Transfer"'
+
+
 def test_checkpoint_keeps_every_verified_condition_all_of():
     cap = compiled()
     submit = _submit(cap)

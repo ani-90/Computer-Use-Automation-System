@@ -74,6 +74,8 @@ class FakeBank:
         self.transferred = False
         self.searched = False
         self.opened_details = False
+        self.owner = "agent"
+        self.pending_captures: list[dict] = []
 
     @property
     def url(self) -> str:
@@ -261,6 +263,24 @@ class FakeBank:
             self.page = "details"
         return None
 
+    # -- escalation: the two methods a real PlaywrightAdapter provides for the handoff --------
+    def set_session_owner(self, owner: str) -> None:
+        self.owner = owner
+
+    def captured_actions(self) -> list[dict]:
+        actions = self.pending_captures
+        self.pending_captures = []
+        return actions
+
+    def simulate_supervisor_click_transfer(self) -> None:
+        """What a real supervisor's own click on Transfer does: the same state change act()
+        performs for that button, plus a captured DOM click event — used by a test's
+        on_escalate callback to stand in for a human actually clicking the live browser."""
+        if self.fields.get("Amount: $") and self.selected.get("From account #") == FROM:
+            self.transferred = True
+            self.new_balance = "1028.00"
+        self.pending_captures.append({"tag": "BUTTON", "text": "Transfer", "url": self.url})
+
 
 def engine():
     return ReplayEngine(FakeBank(), PolicyGate(Config(approval_threshold=Decimal(100))))
@@ -322,6 +342,11 @@ def test_amount_over_balance_is_policy_blocked_mid_flow_not_at_the_start():
     assert result.status == Outcome.POLICY_BLOCK
     assert "balance" in result.failure_detail.observed
     assert not fake.transferred
+    # blocked at the submission step, not when the amount was typed: the form is fully filled
+    # in (accounts already picked) by the time the gate has anything to say about it.
+    assert result.failure_detail.step_index == 5
+    assert fake.selected.get("From account #") == FROM
+    assert fake.selected.get("to account #") == TO
 
 
 def test_amount_over_threshold_is_policy_blocked_with_no_escalation_path_yet():
@@ -331,6 +356,9 @@ def test_amount_over_threshold_is_policy_blocked_with_no_escalation_path_yet():
     )
     assert result.status == Outcome.POLICY_BLOCK
     assert not fake.transferred
+    assert result.failure_detail.step_index == 5
+    assert fake.selected.get("From account #") == FROM
+    assert fake.selected.get("to account #") == TO
 
 
 def test_a_failed_checkpoint_with_no_error_mapping_is_a_hard_failure():
