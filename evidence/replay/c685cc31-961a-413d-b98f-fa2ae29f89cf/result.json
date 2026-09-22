@@ -1,0 +1,64 @@
+{
+  "run_id": "075dda34-50ea-4259-b590-f6c245b9d93e",
+  "status": "SUCCESS",
+  "outputs": {
+    "confirmation_text": "$170.00 has been transferred from account #[REDACTED] to account #[REDACTED].",
+    "new_balance": "$475.00",
+    "transaction_id": "[REDACTED]"
+  },
+  "business_outcome": null,
+  "failure_detail": null,
+  "escalations": [
+    {
+      "ticket_id": "4d64736b-f987-4d1c-92c5-ec8555545210",
+      "run_id": "075dda34-50ea-4259-b590-f6c245b9d93e",
+      "step_index": 5,
+      "reason": "amount exceeds approval threshold",
+      "status": "resolved",
+      "decision": "approve",
+      "captured_human_actions": [
+        {
+          "tag": "A",
+          "text": "Accounts Overview",
+          "url": "http://localhost:8080/parabank/transfer.htm"
+        },
+        {
+          "tag": "A",
+          "text": "Transfer Funds",
+          "url": "http://localhost:8080/parabank/overview.htm"
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "url": "http://localhost:8080/parabank/transfer.htm"
+        },
+        {
+          "tag": "SELECT",
+          "text": "[REDACTED]\n[REDACTED]",
+          "url": "http://localhost:8080/parabank/transfer.htm"
+        },
+        {
+          "tag": "SELECT",
+          "text": "[REDACTED]\n[REDACTED]",
+          "url": "http://localhost:8080/parabank/transfer.htm"
+        },
+        {
+          "tag": "SELECT",
+          "text": "[REDACTED]\n[REDACTED]",
+          "url": "http://localhost:8080/parabank/transfer.htm"
+        },
+        {
+          "tag": "SELECT",
+          "text": "[REDACTED]\n[REDACTED]",
+          "url": "http://localhost:8080/parabank/transfer.htm"
+        },
+        {
+          "tag": "INPUT",
+          "text": "Transfer",
+          "url": "http://localhost:8080/parabank/transfer.htm"
+        }
+      ]
+    }
+  ],
+  "llm_calls": 0
+}

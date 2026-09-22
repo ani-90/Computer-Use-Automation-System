@@ -1,0 +1,26 @@
+{"ts": "2026-09-22T22:08:41.069934+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "act", "data": {"kind": "type", "description": "textbox \"Username\""}}
+{"ts": "2026-09-22T22:08:42.487929+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "act", "data": {"kind": "type", "description": "textbox \"Password\""}}
+{"ts": "2026-09-22T22:08:42.521883+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "act", "data": {"kind": "click", "description": "button \"Log In\""}}
+{"ts": "2026-09-22T22:08:46.576728+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "act", "data": {"kind": "extract", "description": "cell[row \"[REDACTED]\", \"Balance*\"]"}}
+{"ts": "2026-09-22T22:08:49.365662+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "act", "data": {"kind": "click", "description": "link \"Transfer Funds\""}}
+{"ts": "2026-09-22T22:08:54.953852+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "act", "data": {"kind": "type", "description": "textbox \"Amount: $\""}}
+{"ts": "2026-09-22T22:08:58.333893+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "act", "data": {"kind": "select", "description": "combobox \"From account #\""}}
+{"ts": "2026-09-22T22:09:01.949366+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "act", "data": {"kind": "select", "description": "combobox \"to account #\""}}
+{"ts": "2026-09-22T22:10:09.140310+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "locator_miss", "data": {"description": "heading \"Transfer Funds\"", "rank": 0, "strategy": "role_name", "matches": 0}}
+{"ts": "2026-09-22T22:10:09.153905+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "locator_miss", "data": {"description": "text \"Amount: $\"", "rank": 0, "strategy": "text", "matches": 0}}
+{"ts": "2026-09-22T22:10:10.357722+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "locator_miss", "data": {"description": "heading \"Transfer Funds\"", "rank": 0, "strategy": "role_name", "matches": 0}}
+{"ts": "2026-09-22T22:10:10.580341+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "locator_miss", "data": {"description": "text \"Amount: $\"", "rank": 0, "strategy": "text", "matches": 0}}
+{"ts": "2026-09-22T22:10:10.620719+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "act", "data": {"kind": "extract", "description": "paragraph \"$170.00 has been transferred from account #[REDACTED] to account #[REDACTED].\""}}
+{"ts": "2026-09-22T22:10:12.881480+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "act", "data": {"kind": "click", "description": "link \"Accounts Overview\""}}
+{"ts": "2026-09-22T22:10:17.919316+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "act", "data": {"kind": "extract", "description": "cell[row \"[REDACTED]\", \"Balance*\"]"}}
+{"ts": "2026-09-22T22:10:20.508864+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "act", "data": {"kind": "click", "description": "link \"Find Transactions\""}}
+{"ts": "2026-09-22T22:10:25.209726+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "act", "data": {"kind": "type", "description": "textbox \"Find by Amount:\""}}
+{"ts": "2026-09-22T22:10:29.281545+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "act", "data": {"kind": "select", "description": "combobox \"Select an account:\""}}
+{"ts": "2026-09-22T22:10:32.014094+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "act", "data": {"kind": "click", "description": "button \"Find Transactions\" #3"}}
+{"ts": "2026-09-22T22:10:32.100053+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "locator_miss", "data": {"description": "heading \"Transaction Results\"", "rank": 0, "strategy": "role_name", "matches": 0}}
+{"ts": "2026-09-22T22:10:33.631264+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "locator_miss", "data": {"description": "heading \"Find Transactions\"", "rank": 0, "strategy": "role_name", "matches": 0}}
+{"ts": "2026-09-22T22:10:33.647082+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "locator_miss", "data": {"description": "text \"Find by Transaction ID:\"", "rank": 0, "strategy": "text", "matches": 0}}
+{"ts": "2026-09-22T22:10:34.981632+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "locator_miss", "data": {"description": "heading \"Find Transactions\"", "rank": 0, "strategy": "role_name", "matches": 0}}
+{"ts": "2026-09-22T22:10:34.994783+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "locator_miss", "data": {"description": "text \"Find by Transaction ID:\"", "rank": 0, "strategy": "text", "matches": 0}}
+{"ts": "2026-09-22T22:10:35.004086+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "act", "data": {"kind": "click", "description": "link \"Funds Transfer Sent\""}}
+{"ts": "2026-09-22T22:10:39.076101+00:00", "run_id": "c685cc31-961a-413d-b98f-fa2ae29f89cf", "event": "act", "data": {"kind": "extract", "description": "cell[row \"Transaction ID:\", col 1]"}}

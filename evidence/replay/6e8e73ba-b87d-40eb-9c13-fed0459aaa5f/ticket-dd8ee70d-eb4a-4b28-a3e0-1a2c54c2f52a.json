@@ -1,0 +1,20 @@
+{
+  "ticket_id": "dd8ee70d-eb4a-4b28-a3e0-1a2c54c2f52a",
+  "run_id": "7e0de627-eade-4ae0-a88a-0591e94b333d",
+  "step_index": 5,
+  "reason": "amount exceeds approval threshold",
+  "status": "resolved",
+  "decision": "reject",
+  "captured_human_actions": [
+    {
+      "tag": "BODY",
+      "text": "Experience the difference\n\nSolutions\nAbout Us\nServices\nProducts\nLocations\nAdmin Page\nhome\nabout\ncont",
+      "url": "http://localhost:8080/parabank/transfer.htm"
+    },
+    {
+      "tag": "INPUT",
+      "text": "Transfer",
+      "url": "http://localhost:8080/parabank/transfer.htm"
+    }
+  ]
+}
