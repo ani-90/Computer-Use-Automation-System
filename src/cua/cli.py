@@ -2,7 +2,9 @@
 
 import argparse
 import os
+import queue
 import sys
+import threading
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -10,6 +12,7 @@ from dotenv import load_dotenv
 from cua.goal import GoalSpec, PolicyBlockError, TaggedValues, parse_params
 
 PROMPT = Path(__file__).resolve().parents[2] / "prompts" / "discovery_system.md"
+ESCALATION_TIMEOUT_S = 60.0
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -177,7 +180,19 @@ def _run_replay(capability_path: str, goal_path: str, raw_params: list[str], fau
         print(f"ticket: {ticket.ticket_id} (see {logger.dir / f'ticket-{ticket.ticket_id}.json'})")
         print("The browser is now yours. To APPROVE: click Transfer yourself, then press Enter.")
         print("To REJECT: type 'reject' then press Enter — Transfer will never be clicked.")
-        answer = input("> ").strip().lower()
+        print(f"No response within {ESCALATION_TIMEOUT_S:.0f}s is treated as not approved.")
+        # input() has no native timeout. A daemon thread is the safe way to bound it: unlike
+        # concurrent.futures.ThreadPoolExecutor (which registers an exit hook that waits for
+        # every thread it ever created — a timed-out wait would just make the whole process
+        # hang at exit instead), a daemon thread is never waited for, so a genuinely unanswered
+        # prompt can be abandoned cleanly without blocking anything, ever.
+        answers: queue.Queue[str] = queue.Queue(maxsize=1)
+        threading.Thread(target=lambda: answers.put(input("> ")), daemon=True).start()
+        try:
+            answer = answers.get(timeout=ESCALATION_TIMEOUT_S).strip().lower()
+        except queue.Empty:
+            print(f"\nno response within {ESCALATION_TIMEOUT_S:.0f}s — treating as not approved.")
+            return "timeout"
         return "reject" if answer == "reject" else "approve"
 
     with PlaywrightAdapter(config, logger, secrets=list(secrets.values())) as adapter:

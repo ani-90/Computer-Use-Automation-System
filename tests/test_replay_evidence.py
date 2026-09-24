@@ -29,7 +29,16 @@ def test_a_successful_replay_writes_trace_screenshots_and_a_redacted_result(tmp_
     assert any(f.startswith("step-") and f.endswith(".png") for f in files)
 
     trace = json.loads((logger.dir / "trace.json").read_text(encoding="utf-8"))
-    assert trace["run_id"] == result.run_id
+    result_json = json.loads((logger.dir / "result.json").read_text(encoding="utf-8"))
+    # Regression: found live. trace["run_id"] and result.run_id always agreed with each other
+    # (both come from the one variable replay() generates internally) — that alone never proved
+    # anything, since the real bug was that this internally-generated run_id was a completely
+    # different UUID from logger.run_id, the one the evidence folder is actually named after.
+    # Every one of these must be the exact same value, not just internally self-consistent.
+    assert result.run_id == logger.run_id
+    assert trace["run_id"] == logger.run_id
+    assert result_json["run_id"] == logger.run_id
+    assert logger.dir.name == logger.run_id
     assert len(trace["steps"]) == 3 + 15  # 3 prelude steps + 15 compiled steps
     assert all(s["result"] == "ok" for s in trace["steps"])
 

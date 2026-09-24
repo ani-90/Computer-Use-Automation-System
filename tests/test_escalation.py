@@ -157,3 +157,36 @@ def test_a_clean_reject_with_no_matching_click_is_still_a_plain_policy_block():
     )
     assert result.status == Outcome.POLICY_BLOCK
     assert result.failure_detail.observed == "rejected by the supervisor"
+
+
+def test_a_clean_timeout_is_policy_block_with_a_distinct_recorded_decision():
+    # A timeout is not the same event as an active "reject" — the evidence must say so honestly,
+    # not collapse the two into the same recorded decision.
+    fake = FakeBank()
+    result = engine_over_threshold(fake).replay(
+        capability(), PARAMS, SECRETS, BASE + "/index.htm", lambda t: "timeout"
+    )
+    assert result.status == Outcome.POLICY_BLOCK
+    assert not fake.transferred
+    assert result.failure_detail.observed == "no human response within the escalation window"
+    assert result.escalations[0].decision == "timeout"
+    assert result.escalations[0].captured_human_actions == []
+
+
+def test_a_real_click_captured_right_as_the_window_closes_is_still_not_silently_trusted():
+    # The same safety check that protects a typed reject must protect a timeout too: a
+    # supervisor could click Transfer for real an instant before the window expires. The
+    # engine must never guess which of the two signals (a real click vs. "nobody answered") is
+    # the true one.
+    fake = FakeBank()
+
+    def on_escalate(ticket):
+        fake.simulate_supervisor_click_transfer()  # a genuine click really happens
+        return "timeout"  # but the caller's own window closed before a word arrived
+
+    result = engine_over_threshold(fake).replay(capability(), PARAMS, SECRETS, BASE + "/index.htm", on_escalate)
+    assert result.status == Outcome.HARD_FAILURE  # not POLICY_BLOCK — that would be a lie
+    assert result.status != Outcome.SUCCESS  # nor silently trusted as approved
+    assert "cannot be trusted" in result.failure_detail.observed
+    assert result.escalations[0].decision == "timeout"
+    assert result.escalations[0].captured_human_actions != []  # the real click is still on record

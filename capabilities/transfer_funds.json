@@ -167,7 +167,29 @@
           "value": "money"
         }
       ],
-      "error_mapping": [],
+      "error_mapping": [
+        {
+          "when": {
+            "kind": "element_visible",
+            "target": {
+              "description": "cell[row \"{{from_account}}\", \"Balance*\"]",
+              "chain": [
+                {
+                  "strategy": "table_cell",
+                  "value": "{{from_account}}",
+                  "role": null,
+                  "nth": null,
+                  "column": "Balance*",
+                  "col": null
+                }
+              ]
+            },
+            "value": null
+          },
+          "outcome": "BUSINESS_OUTCOME",
+          "detail": "invalid_account"
+        }
+      ],
       "extract_as": "policy_balance",
       "is_submission": false
     },
@@ -1194,7 +1216,29 @@
           "value": "money"
         }
       ],
-      "error_mapping": [],
+      "error_mapping": [
+        {
+          "when": {
+            "kind": "element_visible",
+            "target": {
+              "description": "cell[row \"{{from_account}}\", \"Balance*\"]",
+              "chain": [
+                {
+                  "strategy": "table_cell",
+                  "value": "{{from_account}}",
+                  "role": null,
+                  "nth": null,
+                  "column": "Balance*",
+                  "col": null
+                }
+              ]
+            },
+            "value": null
+          },
+          "outcome": "BUSINESS_OUTCOME",
+          "detail": "invalid_account"
+        }
+      ],
       "extract_as": "new_balance",
       "is_submission": false
     },

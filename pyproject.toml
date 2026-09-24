@@ -13,6 +13,8 @@ dependencies = [
     "playwright>=1.44",
     "anthropic>=0.40",
     "python-dotenv>=1.0",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
 ]
 
 [project.optional-dependencies]

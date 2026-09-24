@@ -1,0 +1,67 @@
+{
+  "instruction": "transfer $5 from account [REDACTED] to account [REDACTED]",
+  "catalog": [
+    {
+      "name": "transfer_funds",
+      "description": "Run the 'transfer_funds' capability against the live app.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "from_account": {
+            "type": "string"
+          },
+          "to_account": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_account",
+          "to_account",
+          "amount"
+        ]
+      }
+    }
+  ],
+  "first_response": [
+    {
+      "id": "toolu_01LRi8PX64vn9GFACYxYA9ZB",
+      "caller": {
+        "type": "direct"
+      },
+      "input": {
+        "from_account": "[REDACTED]",
+        "to_account": "[REDACTED]",
+        "amount": "5"
+      },
+      "name": "transfer_funds",
+      "type": "tool_use"
+    }
+  ],
+  "invoke_request": {
+    "from_account": "[REDACTED]",
+    "to_account": "[REDACTED]",
+    "amount": "5"
+  },
+  "invoke_response": {
+    "run_id": "c28b2a47-611e-48e6-9c48-7d95233f7d23",
+    "status": "SUCCESS",
+    "outputs": {
+      "confirmation_text": "$5.00 has been transferred from account #[REDACTED] to account #[REDACTED].",
+      "new_balance": "$481.50",
+      "transaction_id": "[REDACTED]"
+    },
+    "business_outcome": null,
+    "failure_detail": null,
+    "escalations": [],
+    "llm_calls": 0
+  },
+  "final_response": [
+    {
+      "text": "Perfect! The transfer has been completed successfully. \n\n**Transfer Details:**\n- **Amount:** $5.00\n- **From:** Account [REDACTED]\n- **To:** Account [REDACTED]\n- **Transaction ID:** [REDACTED]\n- **New Balance:** $481.50\n\nThe funds have been transferred from account [REDACTED] to account [REDACTED].",
+      "type": "text"
+    }
+  ]
+}

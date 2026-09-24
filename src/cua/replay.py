@@ -69,8 +69,10 @@ from cua.trace import GateRecord, ReplayTraceStep
 from cua.verify import evaluate, evaluate_shape, render, render_locator, resolves
 
 # What the caller's callback returns after showing the ticket and letting a human act on the
-# live browser: "approve" (they clicked Transfer themselves) or "reject" (they declined).
-EscalateCallback = Callable[[Escalation], Literal["approve", "reject"]]
+# live browser: "approve" (they clicked Transfer themselves), "reject" (they declined), or
+# "timeout" (nobody responded within the caller's own window — the caller decides how long that
+# is and enforces it; the engine only ever sees the final word, never the waiting itself).
+EscalateCallback = Callable[[Escalation], Literal["approve", "reject", "timeout"]]
 
 _POLL_S = 0.2
 
@@ -127,7 +129,11 @@ class ReplayEngine:
         self, capability: Capability, params: Mapping[str, str], secrets: Mapping[str, str], start_url: str,
         on_escalate: EscalateCallback | None = None, fault: FaultInjection | None = None,
     ) -> ReplayResult:
-        run_id = new_run_id()
+        # The one correlation ID for this whole run must be the same one the evidence folder is
+        # already keyed by — never a second, independently generated ID. Found live: they had
+        # been two different UUIDs since Phase 5, invisible because every individual file always
+        # contained *a* valid-looking run_id, just never the *same* one as its own folder name.
+        run_id = self.logger.run_id if self.logger is not None else new_run_id()
         self._steps = []
         self._escalations = []
         self._recovered_once = False
@@ -328,25 +334,33 @@ class ReplayEngine:
             self._escalations.append(escalation.resolve_ticket(self.logger, ticket, "approve", captured))
             return None
 
-        # A typed "reject" is not, by itself, proof nothing happened: a supervisor could click
-        # Transfer for real and then type reject by mistake. The word alone is never trusted
-        # either way — check what was actually captured against it.
-        matched_submit = word == "reject" and _matches_target(step.target, captured)
+        # A typed "reject", or a timeout with nobody there to respond, is not by itself proof
+        # nothing happened: a supervisor could click Transfer for real an instant before the
+        # window closes, or reject by mistake. Neither signal is trusted alone — check what was
+        # actually captured against it, the same safety check either way.
+        matched_submit = word in ("reject", "timeout") and _matches_target(step.target, captured)
         if matched_submit:
-            self._escalations.append(escalation.resolve_ticket(self.logger, ticket, "reject", captured))
+            self._escalations.append(escalation.resolve_ticket(self.logger, ticket, word, captured))
             obs = self.adapter.observe()
             reason = (
-                "reject was signaled but a click matching the submission button was captured; "
+                f"{word} was signaled but a click matching the submission button was captured; "
                 "the outcome cannot be trusted either way"
             )
             self._record(i, "step", step, params, GateRecord(verdict=Verdict.ESCALATE, reason=decision.reason),
                          "ok", "n/a", "n/a", "error", reason, obs.url, obs)
             return self._fail(run_id, Outcome.HARD_FAILURE, i, "a trustworthy decision", reason)
 
-        # A clean reject, or a claimed approval with nothing actually captured — never trust the
-        # claim alone; the supervisor's own click is the only thing that counts as authorizing.
-        reason = "rejected by the supervisor" if word == "reject" else "approval claimed but no click was captured"
-        self._escalations.append(escalation.resolve_ticket(self.logger, ticket, "reject", captured))
+        # A clean reject, a timeout with nothing captured, or a claimed approval with nothing
+        # actually captured — never trust the claim alone; the supervisor's own click is the
+        # only thing that counts as authorizing.
+        if word == "timeout":
+            reason = "no human response within the escalation window"
+        elif word == "reject":
+            reason = "rejected by the supervisor"
+        else:
+            reason = "approval claimed but no click was captured"
+        recorded_decision = "timeout" if word == "timeout" else "reject"
+        self._escalations.append(escalation.resolve_ticket(self.logger, ticket, recorded_decision, captured))
         obs = self.adapter.observe()
         self._record(i, "step", step, params, GateRecord(verdict=Verdict.ESCALATE, reason=decision.reason),
                      "ok", "n/a", "n/a", "blocked", reason, obs.url, obs)
@@ -378,10 +392,15 @@ class ReplayEngine:
         return resolves(self.adapter, _ACCOUNTS_OVERVIEW_HEADING)
 
     def _wait_condition(self, ws: WaitStrategy) -> Condition | None:
-        """The Condition an error_mapping entry would need to match, for a wait that timed out
-        (only option_present is ever mapped today — a dropdown option that never appeared)."""
+        """The Condition an error_mapping entry would need to match, for a wait that timed out.
+        Two kinds are ever mapped today: a dropdown option that never appeared (a missing
+        destination account) and an element that never became visible (a missing source
+        account's own balance row) — both compiler-emitted, both matched here exactly, never a
+        guess at what the timeout meant."""
         if ws.kind == "option_present":
             return Condition(kind="option_present", target=ws.target, value=ws.value)
+        if ws.kind == "element_visible":
+            return Condition(kind="element_visible", target=ws.target)
         return None
 
     def _classified_failure(

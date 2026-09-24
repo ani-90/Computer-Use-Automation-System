@@ -427,6 +427,30 @@ def test_a_failed_transaction_id_lookup_degrades_to_none_not_a_crash():
     assert fake.transferred  # the real work already happened; only the best-effort tail gave up
 
 
+class InvalidSourceAccountBank(FakeBank):
+    """The from_account's own balance row genuinely never appears on Accounts Overview — models
+    a real invalid source account, distinct from the destination-dropdown case."""
+
+    def _cells(self) -> dict:
+        return {}
+
+
+def test_a_missing_source_account_balance_row_is_classified_as_invalid_account_not_hard_failure():
+    # Regression: found live. The compiler emits an error_mapping for this exact wait timeout
+    # (element_visible on the from_account's own balance cell), but the engine's wait-timeout
+    # path (_wait_condition) originally only ever built a matching Condition for option_present
+    # waits — an element_visible timeout fell straight through to the generic classifier and was
+    # wrongly reported as a plain HARD_FAILURE instead of the known business answer.
+    fake = InvalidSourceAccountBank()
+    cap = capability()
+    cap.steps[0] = cap.steps[0].model_copy(
+        update={"wait_strategy": cap.steps[0].wait_strategy.model_copy(update={"timeout_ms": 300})}
+    )
+    result = ReplayEngine(fake, PolicyGate(Config())).replay(cap, PARAMS, SECRETS, BASE + "/index.htm")
+    assert result.status == Outcome.BUSINESS_OUTCOME
+    assert result.business_outcome == "invalid_account"
+
+
 def test_an_early_non_best_effort_step_still_hard_fails_best_effort_never_leaks_backward():
     fake = FakeBank()
     cap = capability()

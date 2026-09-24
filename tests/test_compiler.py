@@ -294,11 +294,10 @@ def test_select_steps_get_an_option_present_wait_strategy():
 
 def test_error_mapping_maps_a_missing_dropdown_option_to_invalid_account():
     # Phase 6: a select step's option_present wait timing out is exactly how a nonexistent
-    # account shows up on this app (a dropdown, not free text — recon confirmed there is no
-    # error page for this). Every other step still carries no mapping; nothing else is known yet.
+    # *destination* account shows up on this app (a dropdown, not free text — recon confirmed
+    # there is no error page for this).
     cap = compiled()
     select_steps = [s for s in cap.steps if s.action == "select"]
-    non_select_steps = [s for s in cap.steps if s.action != "select"]
     assert select_steps and all(s.error_mapping for s in select_steps)
     for s in select_steps:
         assert len(s.error_mapping) == 1
@@ -308,7 +307,40 @@ def test_error_mapping_maps_a_missing_dropdown_option_to_invalid_account():
         assert mapping.when.kind == "option_present"
         assert mapping.when.target == s.wait_strategy.target
         assert mapping.when.value == s.wait_strategy.value
-    assert all(s.error_mapping == [] for s in non_select_steps)
+
+
+def test_error_mapping_also_maps_a_missing_source_account_balance_row_to_invalid_account():
+    # Phase 8: a *source* account that doesn't exist shows up differently — not a dropdown, a
+    # table lookup (its own balance row) that never appears. Same business fact, a different
+    # signal: any table_cell lookup still keyed by an unsubstituted {{placeholder}} gets the
+    # same mapping.
+    cap = compiled()
+    lookup_steps = [
+        s for s in cap.steps
+        if s.action == "extract"
+        and any(c.strategy == "table_cell" and c.value == "{{from_account}}" for c in s.target.chain)
+    ]
+    assert lookup_steps  # the fixture trace has at least one (source_balance_before/new_balance)
+    for s in lookup_steps:
+        assert len(s.error_mapping) == 1
+        mapping = s.error_mapping[0]
+        assert mapping.outcome == Outcome.BUSINESS_OUTCOME
+        assert mapping.detail == "invalid_account"
+        assert mapping.when.kind == "element_visible"
+        assert mapping.when.target == s.wait_strategy.target
+
+
+def test_error_mapping_is_still_empty_for_everything_that_is_neither_pattern():
+    # The transaction_id lookup is keyed by a literal ("Transaction ID:"), not a parameter — it
+    # must not get this mapping, since a missing transaction ID row means something else entirely.
+    cap = compiled()
+    other_steps = [
+        s for s in cap.steps
+        if s.action != "select"
+        and not any(c.strategy == "table_cell" and c.value == "{{from_account}}" for c in s.target.chain)
+    ]
+    assert other_steps
+    assert all(s.error_mapping == [] for s in other_steps)
 
 
 def test_outputs_contract_excludes_policy_only_extracts():

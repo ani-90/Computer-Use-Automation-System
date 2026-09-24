@@ -151,7 +151,9 @@ class Escalation(_Strict):
     step_index: int | None = None
     reason: str
     status: Literal["open", "resolved"] = "open"
-    decision: Literal["approve", "reject", "complete", "retry_step", "abort"] | None = None
+    # "timeout": no human response arrived within the escalation window — distinct from "reject"
+    # (an active decision) so the evidence honestly shows *why* nothing was approved.
+    decision: Literal["approve", "reject", "timeout", "complete", "retry_step", "abort"] | None = None
     captured_human_actions: list[dict[str, str]] = Field(default_factory=list)
 
 

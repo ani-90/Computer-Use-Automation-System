@@ -265,14 +265,31 @@ def _extract_as(ts: TraceStep, balance_extract: str) -> Literal[
 
 
 def _error_mapping(wait_strategy: WaitStrategy) -> list[ErrorMapping]:
-    # A dropdown whose expected option never appears is exactly how an account that doesn't
-    # exist shows up on this app (confirmed in recon: the field is a dropdown, not free text —
-    # there is no error page for this, only a missing option). The `when` reuses the same
+    # A dropdown whose expected option never appears is exactly how a *destination* account that
+    # doesn't exist shows up on this app (confirmed in recon: the field is a dropdown, not free
+    # text — there is no error page for this, only a missing option). The `when` reuses the same
     # target/value the wait already carries, so it matches the wait's own timeout exactly.
     if wait_strategy.kind == "option_present":
         when = Condition(kind="option_present", target=wait_strategy.target, value=wait_strategy.value)
         return [ErrorMapping(when=when, outcome=Outcome.BUSINESS_OUTCOME, detail="invalid_account")]
+    # A *source* account that doesn't exist shows up differently: not a dropdown, a table lookup
+    # (its own balance row on Accounts Overview) — one that never appears if the account number
+    # is wrong. Same underlying business fact as the dropdown case, a different UI signal: the
+    # locator is still keyed by an unsubstituted {{placeholder}} even after parameterization,
+    # meaning it's a lookup keyed by whatever account number the caller supplies, never a literal.
+    if wait_strategy.kind == "element_visible" and _is_parameterized_account_lookup(wait_strategy.target):
+        when = Condition(kind="element_visible", target=wait_strategy.target)
+        return [ErrorMapping(when=when, outcome=Outcome.BUSINESS_OUTCOME, detail="invalid_account")]
     return []
+
+
+def _is_parameterized_account_lookup(target: Locator | None) -> bool:
+    if target is None:
+        return False
+    return any(
+        c.strategy == "table_cell" and c.value is not None and c.value.startswith("{{") and c.value.endswith("}}")
+        for c in target.chain
+    )
 
 
 def _to_step(
