@@ -51,6 +51,34 @@ def test_evidence_log_is_redacted_and_run_id_survives(tmp_path):
     assert json.loads(text)["run_id"] == run_id
 
 
+def test_run_id_with_an_all_digit_uuid_segment_is_never_mangled():
+    # Regression: a random run_id occasionally has a UUID segment that's entirely digits (e.g.
+    # "27288655"), which the account-number pattern (\b\d{5,12}\b) would otherwise redact,
+    # corrupting the one ID meant to correlate a result with its own logged trace — this was
+    # found live, not hypothetical.
+    run_id = "27288655-d03c-4b10-b4e4-0a6da3f53b61"
+    out = Redactor(Config()).redact({"run_id": run_id, "note": "acct 1234567"})
+    assert out["run_id"] == run_id
+    assert out["note"] == "acct [REDACTED]"  # the pattern still applies to everything else
+
+
+def test_ticket_id_is_also_exempt_same_reasoning_as_run_id():
+    ticket_id = "12345678-90ab-cdef-1234-567890abcdef"
+    out = Redactor(Config()).redact({"ticket_id": ticket_id})
+    assert out["ticket_id"] == ticket_id
+
+
+def test_write_json_protects_run_id_not_just_the_log_method(tmp_path):
+    # The bug specifically hit write_json (trace.json/result.json), not log() (log.jsonl), which
+    # already had its own separate, narrower workaround (see evidence.py). This proves the fix
+    # covers the path that actually broke, not just the one that happened to already work.
+    run_id = "12345678-1234-1234-1234-123456789012"
+    logger = EvidenceLogger(run_id, Redactor(Config()), base_dir=tmp_path)
+    logger.write_json("trace.json", {"run_id": run_id, "steps": []})
+    saved = json.loads((tmp_path / run_id / "trace.json").read_text(encoding="utf-8"))
+    assert saved["run_id"] == run_id
+
+
 def test_unmapped_condition_is_hard_failure():
     assert classify("something_new") == Outcome.HARD_FAILURE
     assert classify(None) == Outcome.HARD_FAILURE
