@@ -1,0 +1,19 @@
+{
+  "run_id": "5b9d178d-0a05-4884-bbf7-fd02cf79b2aa",
+  "stop_reason": "SUCCESS",
+  "detail": null,
+  "outputs": {
+    "source_balance_before": "$1040.00",
+    "confirmation_text": "$12.00 has been transferred from account #[REDACTED] to account #[REDACTED].",
+    "new_balance": "$1028.00",
+    "transaction_id": "[REDACTED]"
+  },
+  "llm_calls": 22,
+  "input_tokens": 148575,
+  "output_tokens": 2632,
+  "elapsed_seconds": 99.23399999999674,
+  "max_steps": 40,
+  "timeout_s": 300.0,
+  "steps": 22,
+  "counted_steps": 21
+}

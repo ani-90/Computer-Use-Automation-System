@@ -1,0 +1,122 @@
+{
+  "run_id": "a838dee7-7314-40e6-a814-d2dff7099389",
+  "stop_reason": "MAX_STEPS_EXCEEDED",
+  "detail": null,
+  "steps": [
+    {
+      "step_no": 1,
+      "counted": true,
+      "tool": "type",
+      "ref": 10,
+      "target": {
+        "description": "textbox \"Username\"",
+        "chain": [
+          {
+            "strategy": "role_name",
+            "value": null,
+            "role": "textbox",
+            "nth": 0,
+            "column": null,
+            "col": null
+          }
+        ]
+      },
+      "value": null,
+      "provenance": "secret",
+      "param": "username",
+      "extract_name": null,
+      "expect": "[REDACTED] entered",
+      "expectation": null,
+      "checkpoint_status": "verified",
+      "checkpoint": [
+        {
+          "kind": "field_filled",
+          "target": {
+            "description": "textbox \"Username\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "textbox",
+                "nth": 0,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        }
+      ],
+      "gate": {
+        "verdict": "allow",
+        "reason": "allowed"
+      },
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/index.htm",
+      "reasoning": "",
+      "screenshot": "step-01.png"
+    },
+    {
+      "step_no": 2,
+      "counted": true,
+      "tool": "type",
+      "ref": 11,
+      "target": {
+        "description": "textbox \"Password\"",
+        "chain": [
+          {
+            "strategy": "role_name",
+            "value": null,
+            "role": "textbox",
+            "nth": 1,
+            "column": null,
+            "col": null
+          }
+        ]
+      },
+      "value": null,
+      "provenance": "secret",
+      "param": "password",
+      "extract_name": null,
+      "expect": "password entered",
+      "expectation": null,
+      "checkpoint_status": "verified",
+      "checkpoint": [
+        {
+          "kind": "field_filled",
+          "target": {
+            "description": "textbox \"Password\"",
+            "chain": [
+              {
+                "strategy": "role_name",
+                "value": null,
+                "role": "textbox",
+                "nth": 1,
+                "column": null,
+                "col": null
+              }
+            ]
+          },
+          "value": null
+        }
+      ],
+      "gate": {
+        "verdict": "allow",
+        "reason": "allowed"
+      },
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/index.htm",
+      "reasoning": "",
+      "screenshot": "step-02.png"
+    }
+  ],
+  "outputs": {},
+  "llm_calls": 3,
+  "input_tokens": 14865,
+  "output_tokens": 265,
+  "elapsed_seconds": 19.735000000000582,
+  "max_steps": 2,
+  "timeout_s": 300.0
+}

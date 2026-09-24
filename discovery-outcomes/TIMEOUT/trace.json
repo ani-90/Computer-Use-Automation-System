@@ -1,0 +1,13 @@
+{
+  "run_id": "f4e4ece2-d6a3-4a8e-98c6-eb7c977bcf7a",
+  "stop_reason": "TIMEOUT",
+  "detail": null,
+  "steps": [],
+  "outputs": {},
+  "llm_calls": 1,
+  "input_tokens": 4238,
+  "output_tokens": 105,
+  "elapsed_seconds": 26.796999999991385,
+  "max_steps": 30,
+  "timeout_s": 20.0
+}

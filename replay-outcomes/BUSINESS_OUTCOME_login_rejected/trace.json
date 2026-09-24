@@ -1,0 +1,56 @@
+{
+  "run_id": "7f0b5cf0-471f-48bf-bb32-6dfc34570fce",
+  "steps": [
+    {
+      "step_no": 0,
+      "phase": "prelude",
+      "action": "type",
+      "target": "textbox \"Username\"",
+      "value": null,
+      "gate": {
+        "verdict": "allow",
+        "reason": "no amount involved"
+      },
+      "precondition_status": "n/a",
+      "wait_status": "n/a",
+      "checkpoint_status": "n/a",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/index.htm",
+      "screenshot": null
+    },
+    {
+      "step_no": 1,
+      "phase": "prelude",
+      "action": "type",
+      "target": "textbox \"Password\"",
+      "value": null,
+      "gate": {
+        "verdict": "allow",
+        "reason": "no amount involved"
+      },
+      "precondition_status": "n/a",
+      "wait_status": "n/a",
+      "checkpoint_status": "n/a",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/index.htm",
+      "screenshot": null
+    },
+    {
+      "step_no": 2,
+      "phase": "prelude",
+      "action": "click",
+      "target": "button \"Log In\"",
+      "value": null,
+      "gate": null,
+      "precondition_status": "n/a",
+      "wait_status": "n/a",
+      "checkpoint_status": "failed",
+      "result": "error",
+      "error": "login url_matches not met",
+      "url_after": "http://localhost:8080/parabank/login.htm;jsessionid=C42A2E0FB0DAADF8EEEF2A37499ED30C",
+      "screenshot": "prelude-02.png"
+    }
+  ]
+}

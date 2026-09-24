@@ -1,0 +1,18 @@
+{
+  "run_id": "2a797c52-a756-4286-ada1-f515b7847416",
+  "stop_reason": "DEAD_END",
+  "detail": "blocked_by_policy",
+  "outputs": {
+    "source_balance_before": "$1028.00",
+    "confirmation_text": "$13.00 has been transferred from account #[REDACTED] to account #[REDACTED].",
+    "new_balance": "$1015.00"
+  },
+  "llm_calls": 17,
+  "input_tokens": 109641,
+  "output_tokens": 2041,
+  "elapsed_seconds": 69.95299999997951,
+  "max_steps": 40,
+  "timeout_s": 300.0,
+  "steps": 17,
+  "counted_steps": 17
+}
