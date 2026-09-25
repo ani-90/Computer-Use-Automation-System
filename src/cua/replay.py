@@ -138,11 +138,14 @@ class ReplayEngine:
         self._escalations = []
         self._recovered_once = False
         self.session_owner = SessionOwner.AGENT
-        problems = _validate_params(capability.inputs, params) + _validate_distinct(
-            capability.distinct_inputs, params
-        )
+        problems = _validate_params(capability.inputs, params)
         if problems:
             return self._finish(run_id, self._fail(run_id, Outcome.HARD_FAILURE, -1, "valid parameters", "; ".join(problems)))
+        # Same as the CLI: two inputs that must differ (e.g. from/to account) are a policy rule
+        # broken by the caller's own request, not a system failure.
+        clashes = _validate_distinct(capability.distinct_inputs, params)
+        if clashes:
+            return self._finish(run_id, self._fail(run_id, Outcome.POLICY_BLOCK, -1, "policy allow", "; ".join(clashes)))
 
         amount = self._amount(capability, params)
         # Only a non-positive amount can be judged with no balance: the gate fails closed on
@@ -246,15 +249,24 @@ class ReplayEngine:
                     error_obs = self.adapter.observe()
                     self._record(i, "step", step, params, gate_record, precondition_status, wait_status, "n/a",
                                  "error", str(e), error_obs.url, error_obs)
+                    if step.is_submission and isinstance(e, ActionFailed):
+                        # The click raised, but the browser may already have sent the request (a
+                        # timeout after dispatch, a page closing mid-navigation). Only "no such
+                        # element" proves nothing was clicked; any other failure is unverified.
+                        return self._finish(run_id, self._dispatch_unverified(
+                            run_id, i, capability, params, balance, "action succeeds"))
                     terminal = self._soften(i, step, self._fail(run_id, Outcome.HARD_FAILURE, i, "action succeeds", str(e)))
                     if terminal is None:
                         break
                     return self._finish(run_id, terminal)
 
-            if not human_did_it and not pre_wait and not self._wait(step.wait_strategy, params):
+            if not pre_wait and not self._wait(self._effective_wait(step), params):
                 timeout_obs = self.adapter.observe()
                 self._record(i, "step", step, params, gate_record, precondition_status, "timed_out", "n/a",
                              "error", f"wait {step.wait_strategy.kind} timed out", timeout_obs.url, timeout_obs)
+                if step.is_submission:  # dispatched, and the page never confirmed it
+                    return self._finish(run_id, self._dispatch_unverified(
+                        run_id, i, capability, params, balance, f"wait {step.wait_strategy.kind}"))
                 classified = self._handle_classified_failure(
                     run_id, i, step, self._wait_condition(step.wait_strategy),
                     f"wait {step.wait_strategy.kind}", secrets,
@@ -289,6 +301,9 @@ class ReplayEngine:
                 if failed is not None:
                     self._record(i, "step", step, params, gate_record, precondition_status, wait_status,
                                  checkpoint_status, "error", f"checkpoint {failed.kind} not met", after.url, after)
+                    if step.is_submission:  # dispatched, and the page never confirmed it
+                        return self._finish(run_id, self._dispatch_unverified(
+                            run_id, i, capability, params, balance, f"checkpoint {failed.kind}"))
                     classified = self._handle_classified_failure(run_id, i, step, failed, f"checkpoint {failed.kind}", secrets)
                     if classified is None:
                         continue  # recovered: retry this same step from the top
@@ -340,15 +355,29 @@ class ReplayEngine:
         # actually captured against it, the same safety check either way.
         matched_submit = word in ("reject", "timeout") and _matches_target(step.target, captured)
         if matched_submit:
-            self._escalations.append(escalation.resolve_ticket(self.logger, ticket, word, captured))
-            obs = self.adapter.observe()
-            reason = (
-                f"{word} was signaled but a click matching the submission button was captured; "
-                "the outcome cannot be trusted either way"
+            # The word can neither create nor erase a submission; only the page can. Verify the
+            # step's own wait + checkpoint (a click can land just before the page settles, so the
+            # wait runs first). Never re-clicks, never reverses: a stale signal authorizes nothing.
+            settled = self._wait(self._effective_wait(step), params)
+            after = self.adapter.observe()
+            failed = next((c for c in step.checkpoint if not evaluate(c, self.adapter, after, params)), None)
+            if settled and step.checkpoint and failed is None:
+                note = (
+                    "submission click captured before the signal; transfer verified executed; "
+                    f"the {word} signal arrived post-dispatch and could not be applied"
+                )
+                self._escalations.append(escalation.resolve_ticket(self.logger, ticket, word, captured, note))
+                return None  # verified: the caller proceeds exactly like an approved step
+
+            note = (
+                "submission click captured but the confirmation was not verified; the transfer may or "
+                "may not have posted — verify before any retry"
             )
+            self._escalations.append(escalation.resolve_ticket(self.logger, ticket, word, captured, note))
+            expected = f"checkpoint {failed.kind}" if failed is not None else "a verifiable checkpoint"
             self._record(i, "step", step, params, GateRecord(verdict=Verdict.ESCALATE, reason=decision.reason),
-                         "ok", "n/a", "n/a", "error", reason, obs.url, obs)
-            return self._fail(run_id, Outcome.HARD_FAILURE, i, "a trustworthy decision", reason)
+                         "ok", "ok" if settled else "timed_out", "failed", "error", note, after.url, after)
+            return self._unverified_result(run_id, i, expected, note)
 
         # A clean reject, a timeout with nothing captured, or a claimed approval with nothing
         # actually captured — never trust the claim alone; the supervisor's own click is the
@@ -602,6 +631,60 @@ class ReplayEngine:
         return self._outcome(run_id, status, failure_detail=FailureDetail(
             step_index=step_index, expected=expected, observed=observed,
         ))
+
+    # -- unverified dispatch ---------------------------------------------
+    # The rule: once the money-moving click has been dispatched, the engine never clicks it again.
+    # No session probe, no re-login, no retry — those recovery paths would re-execute an
+    # irreversible step. The only exits are a verified confirmation or a human.
+
+    def _effective_wait(self, step: Step) -> WaitStrategy:
+        """The artifact's own wait, except the money-moving step: a bank can take longer than the
+        few seconds a compiled wait allows, and a false alarm there wastes a human."""
+        if not step.is_submission or step.wait_strategy.kind == "fixed_ms":  # fixed_ms is a bare delay
+            return step.wait_strategy
+        return step.wait_strategy.model_copy(update={"timeout_ms": self.gate.config.submit_confirmation_wait_ms})
+
+    def _unverified_result(self, run_id: str, step_index: int, expected: str, observed: str) -> ReplayResult:
+        result = self._fail(run_id, Outcome.HARD_FAILURE, step_index, expected, observed)
+        return result.model_copy(update={"business_outcome": "dispatch_unverified"})
+
+    def _dispatch_unverified(
+        self, run_id: str, i: int, capability: Capability, params: Mapping[str, str],
+        balance: Decimal | None, expected: str,
+    ) -> ReplayResult:
+        """Record a durable ticket a human can act on, then stop. The ticket stays "open": there
+        is no in-run resume, so nothing here ever resolves it."""
+        ticket = escalation.open_ticket(
+            self.logger, run_id, i, "money-moving step dispatched but its confirmation was never verified",
+            self._verification_procedure(capability, params, balance),
+        )
+        self._escalations.append(ticket)
+        return self._unverified_result(
+            run_id, i, expected,
+            "the transfer may or may not have posted — verify before any retry",
+        )
+
+    @staticmethod
+    def _verification_procedure(capability: Capability, params: Mapping[str, str], balance: Decimal | None) -> str:
+        """Built from the artifact's own read-only lookup steps, so the engine names no page or
+        button of any particular app."""
+        inputs = ", ".join(f"{name}={value}" for name, value in params.items())
+        lines = [
+            (
+                "A money-moving step was clicked but its confirmation was never seen. "
+                "The action may or may not have posted. Do not retry until it is verified."
+            ),
+            f"Inputs: {inputs}.",
+        ]
+        if balance is not None:
+            lines.append(f"Balance before the step: {balance}.")
+        lookup = [s for s in capability.steps if s.best_effort]
+        if lookup:
+            lines.append("To verify, look up the transaction in the app:")
+            for n, s in enumerate(lookup, start=1):
+                given = ", ".join(f"{k}={render(str(v), params)}" for k, v in s.parameters.items())
+                lines.append(f"{n}. {s.action} {render(s.target.description, params)}" + (f" ({given})" if given else ""))
+        return "\n".join(lines)
 
 
 def _matches_target(target, captured: list[dict]) -> bool:

@@ -155,11 +155,18 @@ class Escalation(_Strict):
     # (an active decision) so the evidence honestly shows *why* nothing was approved.
     decision: Literal["approve", "reject", "timeout", "complete", "retry_step", "abort"] | None = None
     captured_human_actions: list[dict[str, str]] = Field(default_factory=list)
+    # Set only when the human's word and the page disagree (e.g. "reject" typed after a real
+    # Transfer click): the conflict is recorded as data, never silently resolved.
+    note: str | None = None
+    # Set only on a dispatched-but-unverified ticket: what a human needs to check the ledger.
+    # Never returned to an HTTP caller (it embeds the run's real parameters).
+    procedure: str | None = None
 
 
 class FaultInjection(_Strict):
-    """Phase 8, `--inject-faults` only. Never constructed on a normal replay() call — the CLI is
-    the only place one is ever built, and only when the flag is explicitly given."""
+    """Phase 8, explicit opt-in only. Never constructed on a normal replay() call: built only by the
+    CLI when `--inject-faults` is given, or by the capability service when its operator sets
+    CUA_FAULT in the environment before starting it. Never from a request body."""
 
     step_index: int
     fault_type: Literal["transient_fail", "clear_session"]

@@ -17,17 +17,25 @@ def new_ticket_id() -> str:
     return str(uuid.uuid4())
 
 
-def open_ticket(logger: EvidenceLogger | None, run_id: str, step_index: int, reason: str) -> Escalation:
-    ticket = Escalation(ticket_id=new_ticket_id(), run_id=run_id, step_index=step_index, reason=reason)
+def open_ticket(
+    logger: EvidenceLogger | None, run_id: str, step_index: int, reason: str, procedure: str | None = None
+) -> Escalation:
+    ticket = Escalation(
+        ticket_id=new_ticket_id(), run_id=run_id, step_index=step_index, reason=reason, procedure=procedure
+    )
     _write(logger, ticket)
     return ticket
 
 
 def resolve_ticket(
-    logger: EvidenceLogger | None, ticket: Escalation, decision: str, captured: list[dict[str, str]]
+    logger: EvidenceLogger | None,
+    ticket: Escalation,
+    decision: str,
+    captured: list[dict[str, str]],
+    note: str | None = None,
 ) -> Escalation:
     resolved = ticket.model_copy(
-        update={"status": "resolved", "decision": decision, "captured_human_actions": captured}
+        update={"status": "resolved", "decision": decision, "captured_human_actions": captured, "note": note}
     )
     _write(logger, resolved)
     return resolved

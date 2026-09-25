@@ -212,7 +212,17 @@ def _run_replay(capability_path: str, goal_path: str, raw_params: list[str], fau
         fd = summary["failure_detail"]
         print(f"  failure at step {fd['step_index']}: expected {fd['expected']!r}, observed {fd['observed']!r}")
     for esc in summary["escalations"]:
-        print(f"  escalation {esc['ticket_id']}: {esc['decision']} ({esc['reason']})")
+        if esc["status"] == "open":  # an unverified dispatch: recorded for a human, never resolved in-run
+            print(f"  escalation {esc['ticket_id']}: open, needs manual verification ({esc['reason']})")
+        else:
+            print(f"  escalation {esc['ticket_id']}: {esc['decision']} ({esc['reason']})")
+    for esc in result.escalations:
+        if esc.status == "open" and esc.procedure:
+            # The operator needs the real accounts to check the ledger, and the saved ticket
+            # cannot show them (it is redacted). Same trust channel as a browser handed to a human:
+            # printed to this screen only, never written to any file or log.
+            print("\n  === OPERATOR: verify before any retry (real values, shown on this screen only) ===")
+            print("\n".join("  " + line for line in esc.procedure.splitlines()))
     return 0 if result.status == Outcome.SUCCESS else 1
 
 

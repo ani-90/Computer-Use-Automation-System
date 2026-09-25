@@ -20,6 +20,10 @@ class PolicyGate:
     def __init__(self, config: Config):
         self._config = config
 
+    @property
+    def config(self) -> Config:
+        return self._config
+
     def check(
         self,
         url: str,

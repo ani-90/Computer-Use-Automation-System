@@ -35,7 +35,7 @@ def test_post_invoke_404s_for_an_unknown_capability_name():
 def test_post_invoke_passes_args_through_and_returns_the_result(monkeypatch):
     captured = {}
 
-    def fake_invoke(name, args):
+    def fake_invoke(name, args, fault=None):
         captured["name"] = name
         captured["args"] = args
         return {"status": "SUCCESS", "outputs": {"confirmation_text": "ok"}}
@@ -53,7 +53,7 @@ def test_post_invoke_passes_args_through_and_returns_the_result(monkeypatch):
 
 
 def test_post_invoke_still_404s_via_the_patched_function(monkeypatch):
-    def fake_invoke(name, args):
+    def fake_invoke(name, args, fault=None):
         raise CapabilityNotFound(name)
 
     monkeypatch.setattr(api_module, "invoke_capability", fake_invoke)

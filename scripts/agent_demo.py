@@ -47,7 +47,7 @@ def _post(path: str, body: dict) -> object:
         f"{API_BASE}{path}", data=data, headers={"Content-Type": "application/json"}, method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=180) as resp:
+        with urllib.request.urlopen(req, timeout=300) as resp:
             return json.loads(resp.read())
     except urllib.error.HTTPError as e:
         return {"error": f"HTTP {e.code}", "detail": e.read().decode("utf-8", "replace")}

@@ -71,6 +71,7 @@ def test_replay_output_is_redacted_before_printing(monkeypatch, capsys):
 
     class FakeResult:
         run_id = "x"
+        escalations = ()
         status = Outcome.SUCCESS
         llm_calls = 0
         failure_detail = None
@@ -98,6 +99,44 @@ def test_replay_output_is_redacted_before_printing(monkeypatch, capsys):
     assert "[REDACTED]" in out
 
 
+def test_an_open_ticket_shows_the_operator_the_real_procedure_but_the_summary_stays_redacted(monkeypatch, capsys):
+    # The saved ticket is redacted, so on its own it cannot tell the operator which account to
+    # check. The terminal is the operator's own surface: real values there, nowhere persisted.
+    from cua.models import Escalation
+
+    set_env(monkeypatch)
+    monkeypatch.setattr("cua.adapter.PlaywrightAdapter.start", lambda _self: None)
+    monkeypatch.setattr("cua.adapter.PlaywrightAdapter.close", lambda _self: None)
+    ticket = Escalation(
+        ticket_id="t-1", run_id="r-1", reason="dispatched but unverified",
+        procedure="Inputs: from_account=12345, to_account=67890, amount=5.",
+    )
+
+    class FakeResult:
+        run_id = "x"
+        escalations = (ticket,)
+        status = Outcome.HARD_FAILURE
+        llm_calls = 0
+        failure_detail = None
+        outputs = None
+
+        def model_dump(self, mode="json"):
+            return {
+                "run_id": self.run_id, "status": self.status.value, "llm_calls": 0, "failure_detail": None,
+                "business_outcome": "dispatch_unverified", "outputs": None,
+                "escalations": [ticket.model_dump(mode="json")],
+            }
+
+    monkeypatch.setattr("cua.replay.ReplayEngine.replay", lambda self, *a, **k: FakeResult())
+    code = main(["replay", "--goal", SPEC_PATH, "--capability", CAP_PATH, *PARAMS])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "OPERATOR: verify before any retry" in out
+    assert "from_account=12345, to_account=67890" in out  # the operator sees the truth
+    summary_part = out.split("=== OPERATOR")[0]
+    assert "12345" not in summary_part and "67890" not in summary_part  # the summary is still redacted
+
+
 def test_replay_prints_business_outcome_when_present(monkeypatch, capsys):
     # Regression: status alone ("BUSINESS_OUTCOME") tells an operator nothing about *why* — a
     # live invalid_account run showed only that, with the classification itself never printed.
@@ -107,6 +146,7 @@ def test_replay_prints_business_outcome_when_present(monkeypatch, capsys):
 
     class FakeResult:
         run_id = "x"
+        escalations = ()
         status = Outcome.BUSINESS_OUTCOME
         llm_calls = 0
         failure_detail = None
@@ -178,6 +218,7 @@ def test_a_valid_fault_combination_is_passed_through_to_replay(monkeypatch):
 
     class FakeResult:
         run_id = "x"
+        escalations = ()
         status = Outcome.SUCCESS
         llm_calls = 0
         failure_detail = None

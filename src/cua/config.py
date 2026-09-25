@@ -1,10 +1,8 @@
-"""Runtime configuration: page allowlist, approval threshold, escalation policy, redaction."""
+"""Runtime configuration: page allowlist, approval threshold, confirmation wait, redaction."""
 
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
-
-from cua.enums import Outcome
 
 
 class Config(BaseModel):
@@ -21,17 +19,14 @@ class Config(BaseModel):
     denylist: list[str] = Field(
         default_factory=lambda: ["/parabank/services*", "/parabank/admin.htm"]
     )
+    # Exactly two named triggers open a ticket, and these two settings are their whole config:
+    # an amount over approval_threshold (a supervisor approves it), and a dispatched
+    # money-moving step whose confirmation never verifies (a human checks the ledger). Every
+    # other failure returns a structured result and pages nobody.
     approval_threshold: Decimal = Decimal(100)
-    # Classification is separate from escalation: which outcomes open a ticket.
-    escalation_policy: dict[Outcome, bool] = Field(
-        default_factory=lambda: {
-            Outcome.SUCCESS: False,
-            Outcome.BUSINESS_OUTCOME: False,
-            Outcome.RECOVERABLE: False,
-            Outcome.HARD_FAILURE: True,
-            Outcome.POLICY_BLOCK: False,
-        }
-    )
+    # How long to wait for the confirmation after the money-moving click before treating the
+    # dispatch as unverified. Overrides the artifact's own (shorter) wait for that one step.
+    submit_confirmation_wait_ms: int = 60_000
     # Config-driven redaction: regexes applied to text, plus dict keys whose values are always hidden.
     redaction_patterns: dict[str, str] = Field(
         default_factory=lambda: {"account_number": r"\b\d{5,12}\b"}

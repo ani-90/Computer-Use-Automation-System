@@ -5,7 +5,7 @@ compiled into a versioned `capability.json`; a deterministic Replay Engine (no L
 Target app: self-hosted ParaBank (Docker). Single goal: log in, transfer funds between two accounts,
 confirm, read the new balance.
 
-## Progress (updated 2026-09-24)
+## Progress (updated 2026-09-26)
 Phases 0-8 are built, live-tested against the real ParaBank instance, and merged to `main` (each phase's
 own branch is kept, not deleted, as history — `main` fast-forwarded through all of them, so nothing was
 squashed). That covers the whole core thesis: discover once (LLM) → compile → replay deterministically →
@@ -13,9 +13,16 @@ classify every outcome → escalate to a human when policy requires it → recov
 without one. Curated, reviewed evidence for every outcome actually produced lives in `discovery-outcomes/`
 and `replay-outcomes/` (one subfolder per outcome, named by the outcome, each with its own `README.md`).
 
-Not done: **Phase 9** (secondary escalation, `drop_response` — explicitly a stretch goal in the plan, "only
-after Phases 0-8 are solid," which they now are; skip or attempt on request) and **Phase 10** (deliverables:
-`README.md`, `REPORT.md` with the 7 fixed headings, an evidence audit, a fresh-clone verification pass).
+Phase 9 is built in a deliberately scoped form on branch `phase-9-dispatch-unverified` (not yet merged): the
+secondary escalation trigger for a money-moving click whose confirmation never verifies (see "Dispatched but
+unverified" below). Live-verified from the CLI and over HTTP. Not built from the original Phase 9 idea: the
+`drop_response` fault, a live browser handoff with in-run resume (`complete` / `retry_step` / `abort`), and
+engine-side balance reconciliation. Those are named cuts, not omissions.
+
+Not done: **Phase 10** (deliverables: `README.md`, `REPORT.md` with the 7 fixed headings, an evidence audit
+including a `run_id`-consistency check over every committed run, a fresh-clone verification pass). Older curated
+replay evidence pre-dates the `run_id` fix (folder name differs from the `run_id` inside) and must be
+regenerated from the final code before submission.
 
 ## Source of truth
 The design docs live outside the repo (the user's Downloads folder): `approach_4.md` (what to build),
@@ -57,15 +64,37 @@ The design docs live outside the repo (the user's Downloads folder): `approach_4
   `amount <= 0` blocks, `amount > balance` blocks, `amount > approval_threshold` escalates (not a block).
   `/parabank/services/*` is disallowed.
 - Outcomes: `SUCCESS`, `BUSINESS_OUTCOME`, `RECOVERABLE`, `HARD_FAILURE`, `POLICY_BLOCK`. Classification is
-  separate from escalation; escalation is a configurable policy. A genuinely expired session
-  (`RECOVERABLE`/`session_expired`) is auto-recovered in place (Phase 8): re-authenticate with the fixed
-  service account, retry the one step that failed, at most once per run, no human involved. A caller only
-  ever sees a terminal `RECOVERABLE` if that one retry also fails. Every other `RECOVERABLE`-adjacent
-  outcome still means classification only — safe and cheap to `replay()` again, never auto-retried.
-- Fault injection (`--inject-faults` only) must be gated behind an explicit flag a normal invocation can
-  never trigger by accident, and must make the real app misbehave for real (real cookies cleared, a real
-  request genuinely delayed) — never a special-cased branch the classifier is aware of. The exact same code
-  path must handle a real, un-injected failure of the same shape.
+  separate from escalation. Exactly two named triggers open a ticket — an amount over `approval_threshold`, and a
+  dispatched money-moving step whose confirmation never verifies; every other failure returns a structured
+  result and pages nobody (there is no per-outcome escalation dict; it was deleted as dead config). A
+  genuinely expired session (`RECOVERABLE`/`session_expired`) is auto-recovered in place (Phase 8):
+  re-authenticate with the fixed service account, retry the one step that failed, at most once per run, no
+  human involved — for every step EXCEPT the money-moving one (see the next rule). A caller only ever sees a
+  terminal `RECOVERABLE` if that one retry also fails. Every other `RECOVERABLE`-adjacent outcome still means
+  classification only — safe and cheap to `replay()` again, never auto-retried. Inputs that must differ
+  (`distinct_inputs`, e.g. from/to account) that don't are `POLICY_BLOCK` everywhere — CLI, engine and HTTP.
+- Dispatched but unverified (Phase 9, scoped): once the `is_submission` click has been dispatched, the engine
+  never clicks it again. It waits `Config.submit_confirmation_wait_ms` (default 60s, overriding the artifact's
+  shorter wait for that one step) on the same page; if the confirmation still doesn't verify it does NOT probe
+  the session, re-login or retry — those recovery paths would re-execute an irreversible step. It writes an
+  `open` ticket (`Escalation.procedure`: inputs, balance before, and a verification procedure built from the
+  artifact's own `best_effort` lookup steps — the engine names no page of any app) and returns `HARD_FAILURE`
+  with `business_outcome = "dispatch_unverified"`. A click that raises (`ActionFailed`) counts the same as a
+  missing confirmation — the request may already have gone out; only "element not found" proves nothing was
+  clicked. The ticket is never resolved in-run: there is no live handoff, so the operator verifies against
+  the ledger with their own access and re-runs only if it didn't post. The CLI prints the real, unredacted
+  procedure to the terminal only (the saved ticket is redacted and cannot name the accounts); nothing printed
+  there is ever written to a file. Over HTTP the caller gets `ticket_id` + `run_id` but never `procedure` (it embeds the run's real
+  parameters). Click-then-reject/timeout: the engine verifies the page instead of trusting the typed word —
+  confirmation visible → `SUCCESS` with the conflict recorded in `Escalation.note`; not visible →
+  `dispatch_unverified`. The word can neither create nor erase a submission; only the page can.
+- Fault injection (`--inject-faults` on the CLI, or the operator-only `CUA_FAULT` environment variable on
+  the capability service) must be gated behind an explicit switch a normal invocation can never trigger by
+  accident, and must make the real app misbehave for real (real cookies cleared, a real request genuinely
+  delayed) — never a special-cased branch the classifier is aware of. The exact same code path must handle a
+  real, un-injected failure of the same shape. `CUA_FAULT` is read once when the service starts, never from a
+  request body; unset means no fault, a malformed value refuses to start, and a set value prints a loud
+  banner.
 - Do not use ParaBank's `/parabank/services/*` API or call `services_proxy` directly. Drive the rendered UI only.
 - The discovery agent gets no ParaBank-specific knowledge in its prompt.
 - Browser runs headed. `session_owner` (`agent` | `human`) gates every action.
@@ -110,3 +139,10 @@ ParaBank: `http://localhost:8080/parabank`. Test login is `agentdemo`; the passw
   or `--inject-faults --fault-step N --fault-type clear_session`. `clear_session` only lands correctly on a
   step whose page is reached by nothing more than a fresh login (this capability's step 0) — see `replay.py`'s
   module docstring for the full scope boundary.
+- Live HTTP fault test (operator-only): start the service with the switch set, then call it as usual —
+  `$env:CUA_FAULT = 'transient_fail:5:**/*transfer*:90000'` then `python -m uvicorn cua.api:app --port 8000`
+  (format `transient_fail:<step>:<url glob>[:<delay_ms>]` or `clear_session:<step>`). Step 5 is the Transfer
+  click. Expect `HARD_FAILURE` / `dispatch_unverified` after about 3 minutes (the fault holds the request 90s,
+  then the engine waits its own 60s); `scripts/agent_demo.py` allows 300s. Remove the variable afterwards.
+- Agent demo over HTTP: `python -m uvicorn cua.api:app --port 8000`, then
+  `python scripts/agent_demo.py 'transfer $5 from account ... to account ...'` (single quotes in PowerShell).

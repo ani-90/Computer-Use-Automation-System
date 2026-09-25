@@ -15,7 +15,10 @@ from tests.test_replay import BASE, PARAMS, SECRETS, FakeBank, capability
 
 
 def engine_over_threshold(fake, logger=None):
-    return ReplayEngine(fake, PolicyGate(Config(approval_threshold=Decimal(1))), logger)
+    # A tiny confirmation wait: the real default is 60s, which a test that never shows a
+    # confirmation would otherwise sit through.
+    config = Config(approval_threshold=Decimal(1), submit_confirmation_wait_ms=50)
+    return ReplayEngine(fake, PolicyGate(config), logger)
 
 
 def test_fires_from_a_normal_replay_call_no_fault_injection_involved():
@@ -131,22 +134,31 @@ def test_session_owner_is_a_real_tracked_state_not_just_a_pause():
     assert engine.session_owner == SessionOwner.AGENT
 
 
-def test_a_real_transfer_click_followed_by_a_typed_reject_is_never_reported_as_blocked():
-    # Regression: a supervisor could click Transfer for real, then type "reject" by mistake.
-    # The typed word must never be trusted over what was actually captured — reporting
-    # POLICY_BLOCK ("Transfer was never dispatched") here would directly contradict reality.
+def test_a_real_click_followed_by_a_typed_reject_is_success_with_the_conflict_recorded(tmp_path):
+    # The word can neither create nor erase a submission; only the page can. The click really
+    # moved the money and the confirmation is on screen, so the outcome is SUCCESS — and the
+    # contradiction is first-class data, in the ticket file and in escalations[].
+    redactor = Redactor(Config(), secrets=list(SECRETS.values()))
+    logger = EvidenceLogger(new_run_id(), redactor, base_dir=tmp_path)
     fake = FakeBank()
 
     def on_escalate(ticket):
         fake.simulate_supervisor_click_transfer()  # a genuine click really happens
         return "reject"  # but the supervisor types reject anyway
 
-    result = engine_over_threshold(fake).replay(capability(), PARAMS, SECRETS, BASE + "/index.htm", on_escalate)
-    assert result.status == Outcome.HARD_FAILURE  # not POLICY_BLOCK — that would be a lie
-    assert result.status != Outcome.SUCCESS  # nor silently trusted as approved
-    assert "cannot be trusted" in result.failure_detail.observed
-    assert result.escalations[0].decision == "reject"
-    assert result.escalations[0].captured_human_actions != []  # the real click is still on record
+    result = engine_over_threshold(fake, logger).replay(
+        capability(), PARAMS, SECRETS, BASE + "/index.htm", on_escalate
+    )
+    assert result.status == Outcome.SUCCESS
+    assert result.outputs.new_balance == "$1028.00"
+    assert result.outputs.transaction_id == "998877"
+    esc = result.escalations[0]
+    assert esc.decision == "reject"  # the human's word is kept as given, not rewritten
+    assert esc.captured_human_actions != []
+    assert "post-dispatch" in esc.note
+    on_disk = json.loads(next(logger.dir.glob("ticket-*.json")).read_text(encoding="utf-8"))
+    assert on_disk["note"] == esc.note and on_disk["decision"] == "reject"
+    assert fake.owner == "agent"
 
 
 def test_a_clean_reject_with_no_matching_click_is_still_a_plain_policy_block():
@@ -173,11 +185,9 @@ def test_a_clean_timeout_is_policy_block_with_a_distinct_recorded_decision():
     assert result.escalations[0].captured_human_actions == []
 
 
-def test_a_real_click_captured_right_as_the_window_closes_is_still_not_silently_trusted():
-    # The same safety check that protects a typed reject must protect a timeout too: a
-    # supervisor could click Transfer for real an instant before the window expires. The
-    # engine must never guess which of the two signals (a real click vs. "nobody answered") is
-    # the true one.
+def test_a_real_click_then_the_window_closing_is_success_with_the_conflict_recorded():
+    # The exact shape of a real live run: click Transfer, then the 60s window expires before
+    # Enter is pressed. The transfer happened; the timeout arrived after dispatch.
     fake = FakeBank()
 
     def on_escalate(ticket):
@@ -185,8 +195,28 @@ def test_a_real_click_captured_right_as_the_window_closes_is_still_not_silently_
         return "timeout"  # but the caller's own window closed before a word arrived
 
     result = engine_over_threshold(fake).replay(capability(), PARAMS, SECRETS, BASE + "/index.htm", on_escalate)
-    assert result.status == Outcome.HARD_FAILURE  # not POLICY_BLOCK — that would be a lie
-    assert result.status != Outcome.SUCCESS  # nor silently trusted as approved
-    assert "cannot be trusted" in result.failure_detail.observed
-    assert result.escalations[0].decision == "timeout"
-    assert result.escalations[0].captured_human_actions != []  # the real click is still on record
+    assert result.status == Outcome.SUCCESS
+    assert result.outputs.new_balance == "$1028.00"
+    esc = result.escalations[0]
+    assert esc.decision == "timeout"
+    assert esc.captured_human_actions != []
+    assert "post-dispatch" in esc.note
+
+
+def test_a_captured_click_with_no_confirmation_is_an_unverified_dispatch_never_a_guess():
+    # A click was captured but the page never shows "Transfer Complete!": the money may or may
+    # not have moved. Not SUCCESS (unverified), not POLICY_BLOCK (it was dispatched) — a
+    # HARD_FAILURE that names the real page condition and says to verify before any retry.
+    fake = FakeBank()
+
+    def on_escalate(ticket):
+        fake.pending_captures.append({"tag": "BUTTON", "text": "Transfer", "url": fake.url})  # click, no effect
+        return "reject"
+
+    result = engine_over_threshold(fake).replay(capability(), PARAMS, SECRETS, BASE + "/index.htm", on_escalate)
+    assert result.status == Outcome.HARD_FAILURE
+    assert result.business_outcome == "dispatch_unverified"
+    assert "verify before any retry" in result.failure_detail.observed
+    assert "trustworthy" not in result.failure_detail.expected
+    assert not fake.transferred  # and the engine never re-clicked or compensated
+    assert "may or may not have posted" in result.escalations[0].note

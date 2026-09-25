@@ -343,11 +343,12 @@ def test_missing_required_parameter_is_a_hard_failure_before_the_browser_opens()
     assert fake.page == "login"
 
 
-def test_the_same_account_twice_is_a_hard_failure_before_the_browser_opens():
+def test_the_same_account_twice_is_a_policy_block_before_the_browser_opens():
+    # Same outcome as the CLI gives for the same input: a rule broken by the caller's own request.
     fake = FakeBank()
     same = {**PARAMS, "to_account": FROM}  # from_account and to_account identical
     result = ReplayEngine(fake, PolicyGate(Config())).replay(capability(), same, SECRETS, BASE + "/index.htm")
-    assert result.status == Outcome.HARD_FAILURE
+    assert result.status == Outcome.POLICY_BLOCK
     assert "from_account and to_account must be different" in result.failure_detail.observed
     assert fake.page == "login"  # never navigated: the browser was never touched
 
