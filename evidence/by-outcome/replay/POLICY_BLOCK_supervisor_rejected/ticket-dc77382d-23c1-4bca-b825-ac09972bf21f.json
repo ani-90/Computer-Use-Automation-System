@@ -1,0 +1,11 @@
+{
+  "ticket_id": "dc77382d-23c1-4bca-b825-ac09972bf21f",
+  "run_id": "12f22cc1-8ed3-4be3-a1f6-a9fc7a605247",
+  "step_index": 5,
+  "reason": "amount exceeds approval threshold",
+  "status": "resolved",
+  "decision": "reject",
+  "captured_human_actions": [],
+  "note": null,
+  "procedure": null
+}

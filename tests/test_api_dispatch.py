@@ -168,3 +168,16 @@ def test_a_normal_transfer_over_http_is_a_plain_success(http_env):
     assert body["business_outcome"] is None
     assert body["escalations"] == []
     assert body["outputs"]["new_balance"]
+
+
+def test_an_amount_with_too_many_decimals_is_a_policy_block_over_http_and_never_reaches_the_app(http_env):
+    # The target accepts such an amount, moves the unrounded value and is left unusable: the contract
+    # must refuse it before any browser opens, whichever caller (CLI, HTTP, agent) sent it.
+    bank = http_env(FakeBank())
+
+    body = _invoke({**PARAMS, "amount": "1.98484"})
+
+    assert body["status"] == "POLICY_BLOCK"
+    assert "at most 2 decimal places" in body["failure_detail"]["observed"]
+    assert body["escalations"] == []
+    assert bank.page == "login" and not bank.transferred

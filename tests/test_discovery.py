@@ -461,6 +461,17 @@ def test_a_blocked_result_keeps_its_screenshot_as_a_separate_block(tmp_path):
     assert "Blocked" in answer[0]["content"][0]["text"]
 
 
+def test_a_blocked_action_tells_the_model_not_to_repeat_it_and_to_find_another_way(tmp_path):
+    # Found live: an agent whose first instinct was a page the policy forbids repeated the same
+    # blocked click three times and hit the dead-end rule. The feedback it gets at that moment is
+    # generic (names nothing about the target) and says so plainly.
+    admin = lambda s: call("click", ref=ref(s, "Admin Page"), expect="x")
+    _, _, llm, _ = run(tmp_path, [admin, call("report_stuck", reasoning="stop")])
+    text = llm.calls[1]["messages"][-1]["content"][0]["content"][0]["text"]
+    assert text.startswith("Blocked: ")
+    assert "do not repeat it" in text and "find another way to reach the goal" in text
+
+
 def test_the_submit_is_blocked_until_every_input_was_entered(tmp_path):
     script = (
         read_balance() + open_transfer()

@@ -39,6 +39,7 @@ is exactly as inspectable after the fact as a discovery run, not a black box wit
 generic action log.
 """
 
+import json
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
@@ -64,6 +65,7 @@ from cua.models import (
     Step,
     WaitStrategy,
 )
+from cua.money import MoneyError, parse_amount, parse_money
 from cua.policy_gate import PolicyGate
 from cua.trace import GateRecord, ReplayTraceStep
 from cua.verify import evaluate, evaluate_shape, render, render_locator, resolves
@@ -141,11 +143,30 @@ class ReplayEngine:
         problems = _validate_params(capability.inputs, params)
         if problems:
             return self._finish(run_id, self._fail(run_id, Outcome.HARD_FAILURE, -1, "valid parameters", "; ".join(problems)))
-        # Same as the CLI: two inputs that must differ (e.g. from/to account) are a policy rule
-        # broken by the caller's own request, not a system failure.
-        clashes = _validate_distinct(capability.distinct_inputs, params)
-        if clashes:
-            return self._finish(run_id, self._fail(run_id, Outcome.POLICY_BLOCK, -1, "policy allow", "; ".join(clashes)))
+        # Rules the caller's own request breaks — money precision, two inputs that must differ
+        # (from/to account) — are a policy block, exactly as on the CLI: well-formed input that the
+        # contract does not allow, rejected before the browser or the app is ever touched.
+        broken = _validate_precision(capability.inputs, params) + _validate_distinct(
+            capability.distinct_inputs, params
+        )
+        if broken:
+            return self._finish(run_id, self._fail(run_id, Outcome.POLICY_BLOCK, -1, "policy allow", "; ".join(broken)))
+
+        # An artifact compiled before money parameters became {{name:money}} hardcodes the app's own
+        # ".00" after the amount, so it can only confirm a whole-number transfer — and would move the
+        # money of any other amount, then fail to find the confirmation. Refuse those before the
+        # browser opens, and hand whole numbers over in the plain form that artifact expects.
+        for name in _legacy_money_inputs(capability):
+            if name not in params:
+                continue
+            value = parse_amount(name, params[name])
+            if value != value.to_integral_value():
+                return self._finish(run_id, self._fail(
+                    run_id, Outcome.HARD_FAILURE, -1, "valid parameters",
+                    f"{name}: this artifact predates money-typed placeholders and supports whole-number "
+                    "amounts only; recompile it for fractional amounts",
+                ))
+            params = {**params, name: str(int(value))}
 
         amount = self._amount(capability, params)
         # Only a non-positive amount can be judged with no balance: the gate fails closed on
@@ -706,10 +727,29 @@ def _validate_params(inputs: Mapping[str, ParamSpec], params: Mapping[str, str])
             continue
         if spec.type == "decimal":
             try:
-                Decimal(params[name])
-            except InvalidOperation:
-                problems.append(f"{name} is not a valid decimal")
+                parse_amount(name, params[name])
+            except MoneyError as e:
+                if not e.is_precision:  # a precision breach is a policy block, judged separately
+                    problems.append(str(e))
     return problems
+
+
+def _validate_precision(inputs: Mapping[str, ParamSpec], params: Mapping[str, str]) -> list[str]:
+    problems = []
+    for name, spec in inputs.items():
+        if spec.type == "decimal" and name in params:
+            try:
+                parse_amount(name, params[name])
+            except MoneyError as e:
+                if e.is_precision:
+                    problems.append(str(e))
+    return problems
+
+
+def _legacy_money_inputs(capability: Capability) -> list[str]:
+    """Decimal inputs this artifact still writes as a bare {{name}} (its pre-money-typed form)."""
+    text = json.dumps([s.model_dump(mode="json") for s in capability.steps])
+    return [n for n, p in capability.inputs.items() if p.type == "decimal" and "{{" + n + "}}" in text]
 
 
 def _validate_distinct(groups: list[list[str]], params: Mapping[str, str]) -> list[str]:
@@ -722,8 +762,7 @@ def _validate_distinct(groups: list[list[str]], params: Mapping[str, str]) -> li
 
 
 def _parse_money(text: str | None) -> Decimal | None:
-    cleaned = (text or "").strip().replace("$", "").replace(",", "")
     try:
-        return Decimal(cleaned)
+        return parse_money(text or "")
     except InvalidOperation:
         return None

@@ -1,0 +1,17 @@
+{
+  "ticket_id": "80942c62-2a2a-4d10-9eeb-824312253c9c",
+  "run_id": "0efa2008-654c-48aa-affd-15fcabe3dc77",
+  "step_index": 5,
+  "reason": "amount exceeds approval threshold",
+  "status": "resolved",
+  "decision": "approve",
+  "captured_human_actions": [
+    {
+      "tag": "INPUT",
+      "text": "Transfer",
+      "url": "http://localhost:8080/parabank/transfer.htm"
+    }
+  ],
+  "note": null,
+  "procedure": null
+}

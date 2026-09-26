@@ -1,0 +1,326 @@
+{
+  "run_id": "0efa2008-654c-48aa-affd-15fcabe3dc77",
+  "steps": [
+    {
+      "step_no": 0,
+      "phase": "prelude",
+      "action": "type",
+      "target": "textbox \"Username\"",
+      "value": null,
+      "gate": {
+        "verdict": "allow",
+        "reason": "no amount involved"
+      },
+      "precondition_status": "n/a",
+      "wait_status": "n/a",
+      "checkpoint_status": "n/a",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/index.htm",
+      "screenshot": null
+    },
+    {
+      "step_no": 1,
+      "phase": "prelude",
+      "action": "type",
+      "target": "textbox \"Password\"",
+      "value": null,
+      "gate": {
+        "verdict": "allow",
+        "reason": "no amount involved"
+      },
+      "precondition_status": "n/a",
+      "wait_status": "n/a",
+      "checkpoint_status": "n/a",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/index.htm",
+      "screenshot": null
+    },
+    {
+      "step_no": 2,
+      "phase": "prelude",
+      "action": "click",
+      "target": "button \"Log In\"",
+      "value": null,
+      "gate": null,
+      "precondition_status": "n/a",
+      "wait_status": "n/a",
+      "checkpoint_status": "ok",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/overview.htm",
+      "screenshot": "prelude-02.png"
+    },
+    {
+      "step_no": 0,
+      "phase": "step",
+      "action": "extract",
+      "target": "cell[row \"[REDACTED]\", \"Balance*\"]",
+      "value": "$390.21",
+      "gate": {
+        "verdict": "allow",
+        "reason": "no amount involved"
+      },
+      "precondition_status": "ok",
+      "wait_status": "ok",
+      "checkpoint_status": "ok",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/overview.htm",
+      "screenshot": "step-00.png"
+    },
+    {
+      "step_no": 1,
+      "phase": "step",
+      "action": "click",
+      "target": "link \"Transfer Funds\"",
+      "value": null,
+      "gate": {
+        "verdict": "allow",
+        "reason": "no amount involved"
+      },
+      "precondition_status": "ok",
+      "wait_status": "ok",
+      "checkpoint_status": "ok",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/transfer.htm",
+      "screenshot": "step-01.png"
+    },
+    {
+      "step_no": 2,
+      "phase": "step",
+      "action": "type",
+      "target": "textbox \"Amount: $\"",
+      "value": null,
+      "gate": {
+        "verdict": "allow",
+        "reason": "no amount involved"
+      },
+      "precondition_status": "ok",
+      "wait_status": "ok",
+      "checkpoint_status": "ok",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/transfer.htm",
+      "screenshot": "step-02.png"
+    },
+    {
+      "step_no": 3,
+      "phase": "step",
+      "action": "select",
+      "target": "combobox \"to account #\"",
+      "value": null,
+      "gate": {
+        "verdict": "allow",
+        "reason": "no amount involved"
+      },
+      "precondition_status": "ok",
+      "wait_status": "ok",
+      "checkpoint_status": "ok",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/transfer.htm",
+      "screenshot": "step-03.png"
+    },
+    {
+      "step_no": 4,
+      "phase": "step",
+      "action": "select",
+      "target": "combobox \"From account #\"",
+      "value": null,
+      "gate": {
+        "verdict": "allow",
+        "reason": "no amount involved"
+      },
+      "precondition_status": "ok",
+      "wait_status": "ok",
+      "checkpoint_status": "ok",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/transfer.htm",
+      "screenshot": "step-04.png"
+    },
+    {
+      "step_no": 5,
+      "phase": "step",
+      "action": "click",
+      "target": "button \"Transfer\"",
+      "value": null,
+      "gate": {
+        "verdict": "escalate",
+        "reason": "amount exceeds approval threshold"
+      },
+      "precondition_status": "ok",
+      "wait_status": "ok",
+      "checkpoint_status": "ok",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/transfer.htm",
+      "screenshot": "step-05.png"
+    },
+    {
+      "step_no": 6,
+      "phase": "step",
+      "action": "extract",
+      "target": "paragraph \"$101.00 has been transferred from account #[REDACTED] to account #[REDACTED].\"",
+      "value": "$101.00 has been transferred from account #[REDACTED] to account #[REDACTED].",
+      "gate": {
+        "verdict": "allow",
+        "reason": "no amount involved"
+      },
+      "precondition_status": "ok",
+      "wait_status": "ok",
+      "checkpoint_status": "ok",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/transfer.htm",
+      "screenshot": "step-06.png"
+    },
+    {
+      "step_no": 7,
+      "phase": "step",
+      "action": "click",
+      "target": "link \"Accounts Overview\"",
+      "value": null,
+      "gate": {
+        "verdict": "allow",
+        "reason": "no amount involved"
+      },
+      "precondition_status": "ok",
+      "wait_status": "ok",
+      "checkpoint_status": "ok",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/overview.htm",
+      "screenshot": "step-07.png"
+    },
+    {
+      "step_no": 8,
+      "phase": "step",
+      "action": "extract",
+      "target": "cell[row \"[REDACTED]\", \"Balance*\"]",
+      "value": "$289.21",
+      "gate": {
+        "verdict": "allow",
+        "reason": "no amount involved"
+      },
+      "precondition_status": "ok",
+      "wait_status": "ok",
+      "checkpoint_status": "ok",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/overview.htm",
+      "screenshot": "step-08.png"
+    },
+    {
+      "step_no": 9,
+      "phase": "step",
+      "action": "click",
+      "target": "link \"Find Transactions\"",
+      "value": null,
+      "gate": {
+        "verdict": "allow",
+        "reason": "no amount involved"
+      },
+      "precondition_status": "ok",
+      "wait_status": "ok",
+      "checkpoint_status": "ok",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/findtrans.htm",
+      "screenshot": "step-09.png"
+    },
+    {
+      "step_no": 10,
+      "phase": "step",
+      "action": "type",
+      "target": "textbox \"Find by Amount:\"",
+      "value": null,
+      "gate": {
+        "verdict": "allow",
+        "reason": "no amount involved"
+      },
+      "precondition_status": "ok",
+      "wait_status": "ok",
+      "checkpoint_status": "ok",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/findtrans.htm",
+      "screenshot": "step-10.png"
+    },
+    {
+      "step_no": 11,
+      "phase": "step",
+      "action": "select",
+      "target": "combobox \"Select an account:\"",
+      "value": null,
+      "gate": {
+        "verdict": "allow",
+        "reason": "no amount involved"
+      },
+      "precondition_status": "ok",
+      "wait_status": "ok",
+      "checkpoint_status": "ok",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/findtrans.htm",
+      "screenshot": "step-11.png"
+    },
+    {
+      "step_no": 12,
+      "phase": "step",
+      "action": "click",
+      "target": "button \"Find Transactions\" #3",
+      "value": null,
+      "gate": {
+        "verdict": "allow",
+        "reason": "no amount involved"
+      },
+      "precondition_status": "ok",
+      "wait_status": "ok",
+      "checkpoint_status": "ok",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/findtrans.htm",
+      "screenshot": "step-12.png"
+    },
+    {
+      "step_no": 13,
+      "phase": "step",
+      "action": "click",
+      "target": "link \"Funds Transfer Sent\"",
+      "value": null,
+      "gate": {
+        "verdict": "allow",
+        "reason": "no amount involved"
+      },
+      "precondition_status": "ok",
+      "wait_status": "ok",
+      "checkpoint_status": "ok",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/transaction.htm?id=[REDACTED]",
+      "screenshot": "step-13.png"
+    },
+    {
+      "step_no": 14,
+      "phase": "step",
+      "action": "extract",
+      "target": "cell[row \"Transaction ID:\", col 1]",
+      "value": "[REDACTED]",
+      "gate": {
+        "verdict": "allow",
+        "reason": "no amount involved"
+      },
+      "precondition_status": "ok",
+      "wait_status": "ok",
+      "checkpoint_status": "ok",
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/transaction.htm?id=[REDACTED]",
+      "screenshot": "step-14.png"
+    }
+  ]
+}

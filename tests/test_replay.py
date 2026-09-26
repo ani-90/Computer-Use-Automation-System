@@ -13,6 +13,7 @@ from cua.adapter import ActionFailed, Candidate, LocatorNotFound, Observation, T
 from cua.config import Config
 from cua.enums import Outcome
 from cua.models import Capability, Locator, LocatorCandidate
+from cua.money import canonical
 from cua.policy_gate import PolicyGate
 from cua.replay import ReplayEngine
 
@@ -133,10 +134,9 @@ class FakeBank:
             ]
         if self.page == "transfer":
             if self.transferred:
-                sentence = (
-                    f"${self.fields.get('Amount: $', '')}.00 has been transferred "
-                    f"from account #{FROM} to account #{TO}."
-                )
+                # ParaBank prints money with exactly two decimals ($5.00, $1.44, $1.50)
+                shown = canonical(Decimal(self.fields.get("Amount: $", "")))
+                sentence = f"${shown} has been transferred from account #{FROM} to account #{TO}."
                 return [
                     ("heading", "Transfer Complete!"), ("paragraph", sentence),
                     ("paragraph", "See Account Activity for more details."),

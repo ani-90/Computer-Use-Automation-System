@@ -7,22 +7,31 @@ confirm, read the new balance.
 
 ## Progress (updated 2026-09-26)
 Phases 0-8 are built, live-tested against the real ParaBank instance, and merged to `main` (each phase's
-own branch is kept, not deleted, as history — `main` fast-forwarded through all of them, so nothing was
-squashed). That covers the whole core thesis: discover once (LLM) → compile → replay deterministically →
-classify every outcome → escalate to a human when policy requires it → recover on its own from a real fault
-without one. Curated, reviewed evidence for every outcome actually produced lives in `discovery-outcomes/`
-and `replay-outcomes/` (one subfolder per outcome, named by the outcome, each with its own `README.md`).
+own branch is kept, not deleted, as history). That covers the whole core thesis: discover once (LLM) -> compile ->
+replay deterministically -> classify every outcome -> escalate to a human when policy requires it -> recover on its own
+from a real fault without one.
 
 Phase 9 is built in a deliberately scoped form on branch `phase-9-dispatch-unverified` (not yet merged): the
 secondary escalation trigger for a money-moving click whose confirmation never verifies (see "Dispatched but
-unverified" below). Live-verified from the CLI and over HTTP. Not built from the original Phase 9 idea: the
-`drop_response` fault, a live browser handoff with in-run resume (`complete` / `retry_step` / `abort`), and
-engine-side balance reconciliation. Those are named cuts, not omissions.
+unverified" below), money precision (`src/cua/money.py`), the operator-only `CUA_FAULT` switch for a live HTTP fault
+test, and compiler fixes found by live discovery runs. Live-verified from the CLI (16 scenarios) and over HTTP through
+the agent (7 runs). Not built from the original Phase 9 idea: the `drop_response` fault, a live browser handoff with
+in-run resume (`complete` / `retry_step` / `abort`), and engine-side balance reconciliation. Those are named cuts.
 
-Not done: **Phase 10** (deliverables: `README.md`, `REPORT.md` with the 7 fixed headings, an evidence audit
-including a `run_id`-consistency check over every committed run, a fresh-clone verification pass). Older curated
-replay evidence pre-dates the `run_id` fix (folder name differs from the `run_id` inside) and must be
-regenerated from the final code before submission.
+Evidence: curated, reviewed, and audited. `evidence/by-outcome/replay/` holds 22 replay runs (one folder per
+scenario, named by outcome, including the same scenarios over HTTP), `evidence/by-outcome/discovery/` one run per
+discovery stop reason (its `SUCCESS` is the run the committed artifact was compiled from), `evidence/agent_demo/` seven
+redacted transcripts. Raw run folders are NOT committed. `python scripts/audit_evidence.py --tracked` passes with 0
+problems and 0 warnings: every run's `run_id` agrees across its files and with its README's `Source run:`, and the
+artifact's `created_from` resolves to a discovery run present in the evidence.
+
+Untested edges, named honestly: amounts of $1000 or more (a source balance over $1000 and a supervisor's click are
+needed; if ParaBank printed a thousands separator the exact-text confirmation check would not match, which would surface
+as a flagged `dispatch_unverified`, not a silent error), and session expiry after step 0 (recovery only lands correctly
+at step 0 live; see `replay.py`'s module docstring).
+
+Not done: **Phase 10** (deliverables: `README.md` is still a placeholder, `REPORT.md` with the 7 fixed headings does not
+exist yet, and a fresh-clone verification pass).
 
 ## Source of truth
 The design docs live outside the repo (the user's Downloads folder): `approach_4.md` (what to build),
@@ -50,6 +59,23 @@ The design docs live outside the repo (the user's Downloads folder): `approach_4
 - The Replay Engine takes no LLM client and never imports the Anthropic SDK. Report a computed LLM-call count.
 - Account numbers and amounts are parameters (`{{from_account}}`, `{{to_account}}`, `{{amount}}`). Never
   hardcode them in code, artifacts, tests or docs. The compiler rewrites tagged CLI values to placeholders.
+- Money precision (`src/cua/money.py`, the one place that knows what an amount is): VALIDATION — an amount
+  is a plain, finite decimal with at most 2 decimal places, counted on the normalized value (1.5, 1.50 and
+  1.500 pass; 1.984 and 1.98484 don't; NaN, Infinity, `1e2`, `$5`, `1,5` aren't amounts). More than 2
+  decimals is a `POLICY_BLOCK` ("amount supports at most 2 decimal places (USD)"), a non-number stays a
+  `HARD_FAILURE`; both happen before the browser opens, on every entry point (CLI `parse_params`, the engine,
+  therefore HTTP). Why: ParaBank accepts `1.98484`, moves the unrounded value, shows `$1.98`, and is left
+  with a balance it can never format (see `recon-notes.md`). RENDERING — a money parameter is written
+  `{{amount:money}}` in the artifact and renders as exactly 2 decimals with no `$` (`1.5` -> `1.50`), for
+  the typed field, the search box and the confirmation sentence alike; never `"$" + amount + ".00"`, and a
+  caller's raw `1.500` is never typed. COMPARISON — by Decimal value, never by string. `discover` also
+  canonicalizes the amount, so the agent types the form the app expects.
+- Artifact provenance: `Capability.created_from` is the run_id of the discovery run it was compiled from
+  (a discovery evidence folder), and `version` is 2 for money-typed placeholders (1 predates them). An
+  artifact is only ever produced by the compiler from a live discovery result — never hand-edited and never
+  migrated by script (saved traces are redacted, so they are not recompilable). An old (version 1) artifact
+  still works for whole-number amounts only: the engine refuses a fractional amount for it before the
+  browser opens, because it would move the money and then fail to find the confirmation.
 - No credentials in artifacts or logs. The service-account login comes from `.env` and is not a per-invocation
   input. Redact before anything is written to `/evidence/`. `run_id` and `ticket_id` are the one deliberate
   exception to pattern-based redaction (see below) — never hardcode another key into that exemption without
@@ -133,6 +159,8 @@ ParaBank: `http://localhost:8080/parabank`. Test login is `agentdemo`; the passw
 - Lint: `ruff check .`
 - Resetting ParaBank data means recreating the container, which also deletes `agentdemo`; re-register after.
 - Discover (costs real LLM money, ~$0.30-0.40/run): `python -m cua.cli discover --param from_account=... --param to_account=... --param amount=...`
+  Discover with a two-decimal amount (e.g. `amount=1.50`): the compiler then sees the app's money form and writes `{{amount:money}}`; the new artifact records the run in `created_from`.
+- Evidence audit: `python scripts/audit_evidence.py --tracked` (folder name = every `run_id` inside; curated folders' README source = every `run_id`; an artifact's `created_from` resolves to discovery evidence). Exit 0 means clean.
 - Replay (free — `llm_calls: 0` on every run, confirmed in the printed output): `python -m cua.cli replay --capability capabilities/transfer_funds.json --param from_account=... --param to_account=... --param amount=...`
 - Fault injection (Phase 8, `--inject-faults` only — a normal replay above never touches this):
   `--inject-faults --fault-step N --fault-type transient_fail --fault-url-pattern "<glob>" [--fault-delay-ms N]`

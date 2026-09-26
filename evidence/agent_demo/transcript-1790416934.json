@@ -1,0 +1,67 @@
+{
+  "instruction": "Call the transfer_funds tool now with from_account=[REDACTED], to_account=[REDACTED], amount=5. Do not ask me any questions and do not change the arguments.",
+  "catalog": [
+    {
+      "name": "transfer_funds",
+      "description": "Run the 'transfer_funds' capability against the live app.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "from_account": {
+            "type": "string"
+          },
+          "to_account": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_account",
+          "to_account",
+          "amount"
+        ]
+      }
+    }
+  ],
+  "first_response": [
+    {
+      "id": "toolu_01P36Be9JynfJn2mv63Vb1Zc",
+      "caller": {
+        "type": "direct"
+      },
+      "input": {
+        "from_account": "[REDACTED]",
+        "to_account": "[REDACTED]",
+        "amount": "5"
+      },
+      "name": "transfer_funds",
+      "type": "tool_use"
+    }
+  ],
+  "invoke_request": {
+    "from_account": "[REDACTED]",
+    "to_account": "[REDACTED]",
+    "amount": "5"
+  },
+  "invoke_response": {
+    "run_id": "6b251114-d056-4323-a374-50584b7980d5",
+    "status": "POLICY_BLOCK",
+    "outputs": null,
+    "business_outcome": null,
+    "failure_detail": {
+      "step_index": -1,
+      "expected": "policy allow",
+      "observed": "from_account and to_account must be different"
+    },
+    "escalations": [],
+    "llm_calls": 0
+  },
+  "final_response": [
+    {
+      "text": "The transfer_funds tool was called with the parameters you specified. The operation resulted in a POLICY_BLOCK status with the following error:\n\n**\"from_account and to_account must be different\"**\n\nThe system rejected the transfer because both the source and destination accounts are the same ([REDACTED]). The policy requires that transfers must be between different accounts.",
+      "type": "text"
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from cua.cli import main
 from cua.enums import Outcome
 from cua.llm import LLMError
@@ -9,6 +11,13 @@ SPEC_PATH = str(Path(__file__).resolve().parent.parent / "goals" / "transfer_fun
 CAP_PATH = str(Path(__file__).resolve().parent.parent / "capabilities" / "transfer_funds.json")
 PARAMS = ["--param", "from_account=acct-a", "--param", "to_account=acct-b", "--param", "amount=5"]
 
+
+
+@pytest.fixture(autouse=True)
+def _isolated_cwd(tmp_path, monkeypatch):
+    """replay and discover write evidence to a cwd-relative folder. Without this, every test run left
+    empty run folders in the repository's real evidence/ tree."""
+    monkeypatch.chdir(tmp_path)
 
 def set_env(monkeypatch):
     monkeypatch.setenv("PARABANK_BASE_URL", "http://h/p")
@@ -57,7 +66,7 @@ def test_a_real_run_starts_the_live_path_with_the_parsed_arguments(monkeypatch):
     monkeypatch.setattr("cua.cli._run_live", lambda *args: calls.append(args) or 0)
     assert main(["discover", "--goal", SPEC_PATH, *PARAMS, "--max-steps", "2", "--timeout", "20"]) == 0
     _spec, params, tagged, start_url, max_steps, timeout, capability_out = calls[0]
-    assert params["amount"] == "5" and start_url == "http://h/p/index.htm"
+    assert params["amount"] == "5.00" and start_url == "http://h/p/index.htm"  # canonical money form
     assert (max_steps, timeout, capability_out) == (2, 20.0, None)
     assert tagged.secrets["password"] == "svc-pass-x"
 

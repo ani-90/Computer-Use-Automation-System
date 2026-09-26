@@ -280,7 +280,8 @@ class DiscoveryRun:
                                 url_after=before.url)
             self._answer(
                 turn, call_id, history_line(step),
-                f"Blocked: {decision.reason}\n\n{render_observation(before)}", is_error=True,
+                f"Blocked: {decision.reason}. This action is not permitted for this task; do not repeat it, "
+                f"find another way to reach the goal.\n\n{render_observation(before)}", is_error=True,
             )
             return self._track(key, failed=True, policy=True)
 

@@ -1,5 +1,5 @@
 {
-  "run_id": "5b9d178d-0a05-4884-bbf7-fd02cf79b2aa",
+  "run_id": "cbc80832-5586-47c1-ac22-4d0a468420ea",
   "stop_reason": "SUCCESS",
   "detail": null,
   "steps": [
@@ -25,7 +25,7 @@
       "provenance": "secret",
       "param": "username",
       "extract_name": null,
-      "expect": "[REDACTED] entered",
+      "expect": "username filled",
       "expectation": null,
       "checkpoint_status": "verified",
       "checkpoint": [
@@ -79,7 +79,7 @@
       "provenance": "secret",
       "param": "password",
       "extract_name": null,
-      "expect": "password entered",
+      "expect": "password filled",
       "expectation": null,
       "checkpoint_status": "verified",
       "checkpoint": [
@@ -241,7 +241,7 @@
       "step_no": 4,
       "counted": true,
       "tool": "extract",
-      "ref": 40,
+      "ref": 37,
       "target": {
         "description": "cell[row \"[REDACTED]\", \"Balance*\"]",
         "chain": [
@@ -255,7 +255,7 @@
           }
         ]
       },
-      "value": "$1040.00",
+      "value": "$410.00",
       "provenance": "other",
       "param": null,
       "extract_name": "source_balance_before",
@@ -288,11 +288,65 @@
       "result": "ok",
       "error": null,
       "url_after": "http://localhost:8080/parabank/overview.htm",
-      "reasoning": "Balance of [REDACTED] is $1040.00, sufficient for $12 transfer. Let me record this before transferring.",
+      "reasoning": "Balance of [REDACTED] is $410.00, sufficient for $1.18 transfer. Let me record this and proceed to transfer.",
       "screenshot": "step-04.png"
     },
     {
       "step_no": 5,
+      "counted": true,
+      "tool": "extract",
+      "ref": 37,
+      "target": {
+        "description": "cell[row \"[REDACTED]\", \"Balance*\"]",
+        "chain": [
+          {
+            "strategy": "table_cell",
+            "value": "[REDACTED]",
+            "role": null,
+            "nth": null,
+            "column": "Balance*",
+            "col": null
+          }
+        ]
+      },
+      "value": "$410.00",
+      "provenance": "other",
+      "param": null,
+      "extract_name": "source_balance_before",
+      "expect": null,
+      "expectation": null,
+      "checkpoint_status": "verified",
+      "checkpoint": [
+        {
+          "kind": "shape_matches",
+          "target": {
+            "description": "cell[row \"[REDACTED]\", \"Balance*\"]",
+            "chain": [
+              {
+                "strategy": "table_cell",
+                "value": "[REDACTED]",
+                "role": null,
+                "nth": null,
+                "column": "Balance*",
+                "col": null
+              }
+            ]
+          },
+          "value": "money"
+        }
+      ],
+      "gate": {
+        "verdict": "allow",
+        "reason": "allowed"
+      },
+      "result": "ok",
+      "error": null,
+      "url_after": "http://localhost:8080/parabank/overview.htm",
+      "reasoning": "",
+      "screenshot": "step-05.png"
+    },
+    {
+      "step_no": 6,
       "counted": true,
       "tool": "click",
       "ref": 12,
@@ -321,8 +375,8 @@
       "provenance": "other",
       "param": null,
       "extract_name": null,
-      "expect": "Transfer Funds",
-      "expectation": "weak",
+      "expect": "Transfer Funds page",
+      "expectation": "refuted",
       "checkpoint_status": "verified",
       "checkpoint": [
         {
@@ -389,11 +443,11 @@
       "result": "ok",
       "error": null,
       "url_after": "http://localhost:8080/parabank/transfer.htm",
-      "reasoning": "Balance confirmed: $1040.00 - sufficient for $12 transfer. Now let's proceed to Transfer Funds.",
-      "screenshot": "step-05.png"
+      "reasoning": "Balance confirmed as $410.00, sufficient. Now proceed to Transfer Funds.",
+      "screenshot": "step-06.png"
     },
     {
-      "step_no": 6,
+      "step_no": 7,
       "counted": true,
       "tool": "type",
       "ref": 18,
@@ -410,11 +464,11 @@
           }
         ]
       },
-      "value": "12",
+      "value": "1.18",
       "provenance": "parameter",
       "param": "amount",
       "extract_name": null,
-      "expect": "12 entered in amount field",
+      "expect": "amount filled",
       "expectation": null,
       "checkpoint_status": "verified",
       "checkpoint": [
@@ -443,22 +497,22 @@
       "result": "ok",
       "error": null,
       "url_after": "http://localhost:8080/parabank/transfer.htm",
-      "reasoning": "",
-      "screenshot": "step-06.png"
+      "reasoning": "From account is already [REDACTED], need to set to account to [REDACTED] and amount to 1.18.",
+      "screenshot": "step-07.png"
     },
     {
-      "step_no": 7,
+      "step_no": 8,
       "counted": true,
       "tool": "select",
-      "ref": 19,
+      "ref": 20,
       "target": {
-        "description": "combobox \"From account #\"",
+        "description": "combobox \"to account #\"",
         "chain": [
           {
             "strategy": "role_name",
             "value": null,
             "role": "combobox",
-            "nth": 0,
+            "nth": 1,
             "column": null,
             "col": null
           }
@@ -466,28 +520,28 @@
       },
       "value": "[REDACTED]",
       "provenance": "parameter",
-      "param": "from_account",
+      "param": "to_account",
       "extract_name": null,
-      "expect": "From account [REDACTED] selected",
+      "expect": "to account selected as [REDACTED]",
       "expectation": null,
       "checkpoint_status": "verified",
       "checkpoint": [
         {
           "kind": "option_selected",
           "target": {
-            "description": "combobox \"From account #\"",
+            "description": "combobox \"to account #\"",
             "chain": [
               {
                 "strategy": "role_name",
                 "value": null,
                 "role": "combobox",
-                "nth": 0,
+                "nth": 1,
                 "column": null,
                 "col": null
               }
             ]
           },
-          "value": "{{from_account}}"
+          "value": "{{to_account}}"
         }
       ],
       "gate": {
@@ -497,11 +551,11 @@
       "result": "ok",
       "error": null,
       "url_after": "http://localhost:8080/parabank/transfer.htm",
-      "reasoning": "",
-      "screenshot": "step-07.png"
+      "reasoning": "Now I need to set From account to [REDACTED] (already correct) and To account to [REDACTED].",
+      "screenshot": "step-08.png"
     },
     {
-      "step_no": 8,
+      "step_no": 9,
       "counted": true,
       "tool": "click",
       "ref": 21,
@@ -536,27 +590,27 @@
       "checkpoint": [],
       "gate": {
         "verdict": "block",
-        "reason": "the value for to_account was never entered; enter every input before submitting"
+        "reason": "the value for from_account was never entered; enter every input before submitting"
       },
       "result": "blocked",
-      "error": "the value for to_account was never entered; enter every input before submitting",
+      "error": "the value for from_account was never entered; enter every input before submitting",
       "url_after": "http://localhost:8080/parabank/transfer.htm",
-      "reasoning": "To account is already [REDACTED]. Now click Transfer.",
+      "reasoning": "All fields are set correctly: From [REDACTED], To [REDACTED], Amount $1.18. Now click Transfer.",
       "screenshot": null
     },
     {
-      "step_no": 9,
+      "step_no": 10,
       "counted": true,
       "tool": "select",
-      "ref": 20,
+      "ref": 19,
       "target": {
-        "description": "combobox \"to account #\"",
+        "description": "combobox \"From account #\"",
         "chain": [
           {
             "strategy": "role_name",
             "value": null,
             "role": "combobox",
-            "nth": 1,
+            "nth": 0,
             "column": null,
             "col": null
           }
@@ -564,28 +618,28 @@
       },
       "value": "[REDACTED]",
       "provenance": "parameter",
-      "param": "to_account",
+      "param": "from_account",
       "extract_name": null,
-      "expect": "To account [REDACTED] selected",
+      "expect": "from account selected as [REDACTED]",
       "expectation": null,
       "checkpoint_status": "verified",
       "checkpoint": [
         {
           "kind": "option_selected",
           "target": {
-            "description": "combobox \"to account #\"",
+            "description": "combobox \"From account #\"",
             "chain": [
               {
                 "strategy": "role_name",
                 "value": null,
                 "role": "combobox",
-                "nth": 1,
+                "nth": 0,
                 "column": null,
                 "col": null
               }
             ]
           },
-          "value": "{{to_account}}"
+          "value": "{{from_account}}"
         }
       ],
       "gate": {
@@ -595,11 +649,11 @@
       "result": "ok",
       "error": null,
       "url_after": "http://localhost:8080/parabank/transfer.htm",
-      "reasoning": "The to account already shows [REDACTED] selected. Let me explicitly select it to satisfy the validation.",
-      "screenshot": "step-09.png"
+      "reasoning": "The From account shows [REDACTED] already selected (default). Let me explicitly select it to satisfy the validation requirement.",
+      "screenshot": "step-10.png"
     },
     {
-      "step_no": 10,
+      "step_no": 11,
       "counted": true,
       "tool": "click",
       "ref": 21,
@@ -652,11 +706,11 @@
         {
           "kind": "element_visible",
           "target": {
-            "description": "paragraph \"$12.00 has been transferred from account #[REDACTED] to account #[REDACTED].\"",
+            "description": "paragraph \"$1.18 has been transferred from account #[REDACTED] to account #[REDACTED].\"",
             "chain": [
               {
                 "strategy": "text",
-                "value": "$12.00 has been transferred from account #[REDACTED] to account #[REDACTED].",
+                "value": "$1.18 has been transferred from account #[REDACTED] to account #[REDACTED].",
                 "role": null,
                 "nth": null,
                 "column": null,
@@ -725,20 +779,20 @@
       "result": "ok",
       "error": null,
       "url_after": "http://localhost:8080/parabank/transfer.htm",
-      "reasoning": "All fields are set. Now click Transfer.",
-      "screenshot": "step-10.png"
+      "reasoning": "All fields confirmed: Amount 1.18, From [REDACTED], To [REDACTED]. Now submit transfer.",
+      "screenshot": "step-11.png"
     },
     {
-      "step_no": 11,
+      "step_no": 12,
       "counted": true,
       "tool": "extract",
       "ref": 31,
       "target": {
-        "description": "paragraph \"$12.00 has been transferred from account #[REDACTED] to account #[REDACTED].\"",
+        "description": "paragraph \"$1.18 has been transferred from account #[REDACTED] to account #[REDACTED].\"",
         "chain": [
           {
             "strategy": "text",
-            "value": "$12.00 has been transferred from account #[REDACTED] to account #[REDACTED].",
+            "value": "$1.18 has been transferred from account #[REDACTED] to account #[REDACTED].",
             "role": null,
             "nth": null,
             "column": null,
@@ -746,7 +800,7 @@
           }
         ]
       },
-      "value": "$12.00 has been transferred from account #[REDACTED] to account #[REDACTED].",
+      "value": "$1.18 has been transferred from account #[REDACTED] to account #[REDACTED].",
       "provenance": "other",
       "param": null,
       "extract_name": "confirmation_text",
@@ -757,11 +811,11 @@
         {
           "kind": "shape_matches",
           "target": {
-            "description": "paragraph \"$12.00 has been transferred from account #[REDACTED] to account #[REDACTED].\"",
+            "description": "paragraph \"$1.18 has been transferred from account #[REDACTED] to account #[REDACTED].\"",
             "chain": [
               {
                 "strategy": "text",
-                "value": "$12.00 has been transferred from account #[REDACTED] to account #[REDACTED].",
+                "value": "$1.18 has been transferred from account #[REDACTED] to account #[REDACTED].",
                 "role": null,
                 "nth": null,
                 "column": null,
@@ -779,11 +833,11 @@
       "result": "ok",
       "error": null,
       "url_after": "http://localhost:8080/parabank/transfer.htm",
-      "reasoning": "Transfer completed successfully. Let me extract the confirmation message.",
-      "screenshot": "step-11.png"
+      "reasoning": "Transfer completed successfully. Let me extract the confirmation message and then check the new balance and transaction ID.",
+      "screenshot": "step-12.png"
     },
     {
-      "step_no": 12,
+      "step_no": 13,
       "counted": true,
       "tool": "click",
       "ref": 11,
@@ -812,8 +866,8 @@
       "provenance": "other",
       "param": null,
       "extract_name": null,
-      "expect": "Accounts Overview",
-      "expectation": "weak",
+      "expect": "Accounts Overview page with updated balances",
+      "expectation": "refuted",
       "checkpoint_status": "verified",
       "checkpoint": [
         {
@@ -896,14 +950,14 @@
       "result": "ok",
       "error": null,
       "url_after": "http://localhost:8080/parabank/overview.htm",
-      "reasoning": "Now let me check the Accounts Overview to get the new balance of account [REDACTED].",
-      "screenshot": "step-12.png"
+      "reasoning": "The confirmation message has already been extracted automatically. Now let me check the new balance and find the transaction ID.",
+      "screenshot": "step-13.png"
     },
     {
-      "step_no": 13,
+      "step_no": 14,
       "counted": true,
       "tool": "extract",
-      "ref": 40,
+      "ref": 37,
       "target": {
         "description": "cell[row \"[REDACTED]\", \"Balance*\"]",
         "chain": [
@@ -917,7 +971,7 @@
           }
         ]
       },
-      "value": "$1028.00",
+      "value": "$408.82",
       "provenance": "other",
       "param": null,
       "extract_name": "new_balance",
@@ -950,14 +1004,14 @@
       "result": "ok",
       "error": null,
       "url_after": "http://localhost:8080/parabank/overview.htm",
-      "reasoning": "New balance confirmed as $1028.00. Let me extract this and then check transaction history.",
-      "screenshot": "step-13.png"
+      "reasoning": "New balance is $408.82. Let me extract this and then check transaction history for the transaction ID.",
+      "screenshot": "step-14.png"
     },
     {
-      "step_no": 14,
+      "step_no": 15,
       "counted": true,
       "tool": "click",
-      "ref": 19,
+      "ref": 18,
       "target": {
         "description": "link \"[REDACTED]\"",
         "chain": [
@@ -983,7 +1037,7 @@
       "provenance": "other",
       "param": null,
       "extract_name": null,
-      "expect": "Account Activity",
+      "expect": "Account Activity page for [REDACTED]",
       "expectation": null,
       "checkpoint_status": null,
       "checkpoint": [],
@@ -994,11 +1048,11 @@
       "result": "blocked",
       "error": "path not allowlisted: /parabank/activity.htm",
       "url_after": "http://localhost:8080/parabank/overview.htm",
-      "reasoning": "New balance is $1028.00, confirmed. Now let's check transaction history for account [REDACTED] to find the transaction ID.",
+      "reasoning": "New balance confirmed as $408.82. Now let's click on account [REDACTED] to view its transaction history and find the transaction ID.",
       "screenshot": null
     },
     {
-      "step_no": 15,
+      "step_no": 16,
       "counted": true,
       "tool": "click",
       "ref": 14,
@@ -1027,8 +1081,8 @@
       "provenance": "other",
       "param": null,
       "extract_name": null,
-      "expect": "Find Transactions",
-      "expectation": "weak",
+      "expect": "Find Transactions page",
+      "expectation": "refuted",
       "checkpoint_status": "verified",
       "checkpoint": [
         {
@@ -1095,11 +1149,11 @@
       "result": "ok",
       "error": null,
       "url_after": "http://localhost:8080/parabank/findtrans.htm",
-      "reasoning": "",
-      "screenshot": "step-15.png"
+      "reasoning": "I cannot access activity.htm directly. Let me try Find Transactions instead.",
+      "screenshot": "step-16.png"
     },
     {
-      "step_no": 16,
+      "step_no": 17,
       "counted": true,
       "tool": "type",
       "ref": 26,
@@ -1116,11 +1170,11 @@
           }
         ]
       },
-      "value": "12.00",
+      "value": "1.18",
       "provenance": "parameter",
       "param": "amount",
       "extract_name": null,
-      "expect": "12.00 entered",
+      "expect": "amount filled",
       "expectation": null,
       "checkpoint_status": "verified",
       "checkpoint": [
@@ -1149,11 +1203,11 @@
       "result": "ok",
       "error": null,
       "url_after": "http://localhost:8080/parabank/findtrans.htm",
-      "reasoning": "Account [REDACTED] is already selected. Let me search by amount to find the $12 transaction.",
-      "screenshot": "step-16.png"
+      "reasoning": "Account [REDACTED] is already selected. Let me search by amount $1.18 to find the transaction.",
+      "screenshot": "step-17.png"
     },
     {
-      "step_no": 17,
+      "step_no": 18,
       "counted": true,
       "tool": "click",
       "ref": 27,
@@ -1185,11 +1239,11 @@
       "result": "blocked",
       "error": "a dropdown listing one of your input values was never set on this page; select a value in it before pressing a button",
       "url_after": "http://localhost:8080/parabank/findtrans.htm",
-      "reasoning": "",
+      "reasoning": "Account [REDACTED] is selected and amount 1.18 is filled in. Now click Find Transactions button for amount search.",
       "screenshot": null
     },
     {
-      "step_no": 18,
+      "step_no": 19,
       "counted": true,
       "tool": "select",
       "ref": 18,
@@ -1210,7 +1264,7 @@
       "provenance": "parameter",
       "param": "from_account",
       "extract_name": null,
-      "expect": "[REDACTED] selected",
+      "expect": "account selected",
       "expectation": null,
       "checkpoint_status": "verified",
       "checkpoint": [
@@ -1240,10 +1294,10 @@
       "error": null,
       "url_after": "http://localhost:8080/parabank/findtrans.htm",
       "reasoning": "",
-      "screenshot": "step-18.png"
+      "screenshot": "step-19.png"
     },
     {
-      "step_no": 19,
+      "step_no": 20,
       "counted": true,
       "tool": "click",
       "ref": 27,
@@ -1264,8 +1318,8 @@
       "provenance": "other",
       "param": null,
       "extract_name": null,
-      "expect": "Transaction Results",
-      "expectation": "confirmed",
+      "expect": "Transaction Results table",
+      "expectation": "refuted",
       "checkpoint_status": "verified",
       "checkpoint": [
         {
@@ -1352,11 +1406,11 @@
       "result": "ok",
       "error": null,
       "url_after": "http://localhost:8080/parabank/findtrans.htm",
-      "reasoning": "Now let's click the Find Transactions button for the amount search.",
-      "screenshot": "step-19.png"
+      "reasoning": "Now the account [REDACTED] is selected and amount is 1.18. Let's click Find Transactions for amount search.",
+      "screenshot": "step-20.png"
     },
     {
-      "step_no": 20,
+      "step_no": 21,
       "counted": true,
       "tool": "click",
       "ref": 18,
@@ -1419,11 +1473,11 @@
       "result": "ok",
       "error": null,
       "url_after": "http://localhost:8080/parabank/transaction.htm?id=[REDACTED]",
-      "reasoning": "Found the transaction. Let me click on it to get the transaction ID.",
-      "screenshot": "step-20.png"
+      "reasoning": "Found the transaction. Let me click on \"Funds Transfer Sent\" link to get the transaction ID.",
+      "screenshot": "step-21.png"
     },
     {
-      "step_no": 21,
+      "step_no": 22,
       "counted": true,
       "tool": "extract",
       "ref": 32,
@@ -1473,11 +1527,11 @@
       "result": "ok",
       "error": null,
       "url_after": "http://localhost:8080/parabank/transaction.htm?id=[REDACTED]",
-      "reasoning": "Found the transaction ID: [REDACTED] (Funds Transfer Sent, $12.00, Debit). Let me extract this.",
-      "screenshot": "step-21.png"
+      "reasoning": "This confirms the transaction: ID [REDACTED], Funds Transfer Sent, $1.18 Debit. Let me extract this transaction ID.",
+      "screenshot": "step-22.png"
     },
     {
-      "step_no": 22,
+      "step_no": 23,
       "counted": false,
       "tool": "report_done",
       "ref": null,
@@ -1494,20 +1548,20 @@
       "result": "ok",
       "error": null,
       "url_after": null,
-      "reasoning": "All required data has been successfully extracted:\n- **Confirmation message**: \"$12.00 has been transferred from account #[REDACTED] to account #[REDACTED].\"\n- **New balance of account [REDACTED]**: $1028.00\n- **Transaction ID**: [REDACTED]",
+      "reasoning": "All required data has been successfully extracted:\n- Confirmation text: \"$1.18 has been transferred from account #[REDACTED] to account #[REDACTED].\"\n- New balance: $408.82\n- Transaction ID: [REDACTED]",
       "screenshot": null
     }
   ],
   "outputs": {
-    "source_balance_before": "$1040.00",
-    "confirmation_text": "$12.00 has been transferred from account #[REDACTED] to account #[REDACTED].",
-    "new_balance": "$1028.00",
+    "source_balance_before": "$410.00",
+    "confirmation_text": "$1.18 has been transferred from account #[REDACTED] to account #[REDACTED].",
+    "new_balance": "$408.82",
     "transaction_id": "[REDACTED]"
   },
-  "llm_calls": 22,
-  "input_tokens": 148575,
-  "output_tokens": 2632,
-  "elapsed_seconds": 99.23399999999674,
+  "llm_calls": 23,
+  "input_tokens": 158074,
+  "output_tokens": 2662,
+  "elapsed_seconds": 92.75,
   "max_steps": 40,
-  "timeout_s": 300.0
+  "timeout_s": 420.0
 }

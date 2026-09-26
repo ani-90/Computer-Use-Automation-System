@@ -1,0 +1,8 @@
+{"ts": "2026-09-26T10:03:58.373786+00:00", "run_id": "2f0a30ac-0f76-4327-bbbf-c03475b34c8f", "event": "act", "data": {"kind": "type", "description": "textbox \"Username\""}}
+{"ts": "2026-09-26T10:03:59.738117+00:00", "run_id": "2f0a30ac-0f76-4327-bbbf-c03475b34c8f", "event": "act", "data": {"kind": "type", "description": "textbox \"Password\""}}
+{"ts": "2026-09-26T10:03:59.763319+00:00", "run_id": "2f0a30ac-0f76-4327-bbbf-c03475b34c8f", "event": "act", "data": {"kind": "click", "description": "button \"Log In\""}}
+{"ts": "2026-09-26T10:04:03.202821+00:00", "run_id": "2f0a30ac-0f76-4327-bbbf-c03475b34c8f", "event": "act", "data": {"kind": "extract", "description": "cell[row \"[REDACTED]\", \"Balance*\"]"}}
+{"ts": "2026-09-26T10:04:06.141311+00:00", "run_id": "2f0a30ac-0f76-4327-bbbf-c03475b34c8f", "event": "act", "data": {"kind": "click", "description": "link \"Transfer Funds\""}}
+{"ts": "2026-09-26T10:04:10.657789+00:00", "run_id": "2f0a30ac-0f76-4327-bbbf-c03475b34c8f", "event": "act", "data": {"kind": "type", "description": "textbox \"Amount: $\""}}
+{"ts": "2026-09-26T10:04:14.249284+00:00", "run_id": "2f0a30ac-0f76-4327-bbbf-c03475b34c8f", "event": "act", "data": {"kind": "select", "description": "combobox \"to account #\""}}
+{"ts": "2026-09-26T10:04:17.678527+00:00", "run_id": "2f0a30ac-0f76-4327-bbbf-c03475b34c8f", "event": "act", "data": {"kind": "select", "description": "combobox \"From account #\""}}

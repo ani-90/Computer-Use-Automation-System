@@ -14,6 +14,12 @@ REDACTED = "[REDACTED]"
 # risk silently corrupting the one ID meant to tie a result to its own logged trace.
 _EXEMPT_KEYS = {"run_id", "ticket_id"}
 
+# The same IDs also travel as free text — a model quoting "ticket 12345678-371f-..." to a user, a log
+# sentence naming a run — where there is no key to exempt. A UUID is never an account number, so any
+# well-formed UUID in text is protected from the number pattern (found live: the model's reply showed
+# a ticket reference whose all-digit first segment had been masked, so it matched no ticket file).
+_UUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+
 
 class Redactor:
     def __init__(self, config: Config, secrets: list[str] | None = None):
@@ -43,6 +49,16 @@ class Redactor:
     def _redact_text(self, text: str) -> str:
         for secret in self._secrets:
             text = text.replace(secret, REDACTED)
+        pieces: list[str] = []
+        last = 0
+        for uuid in _UUID.finditer(text):
+            pieces.append(self._mask_numbers(text[last:uuid.start()]))
+            pieces.append(uuid.group())  # a correlation ID: kept whole
+            last = uuid.end()
+        pieces.append(self._mask_numbers(text[last:]))
+        return "".join(pieces)
+
+    def _mask_numbers(self, text: str) -> str:
         for pattern in self._patterns:
             text = pattern.sub(REDACTED, text)
         return text

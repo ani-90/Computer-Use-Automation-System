@@ -12,6 +12,7 @@ from typing import Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from cua.models import SHAPES, ParamSpec
+from cua.money import MoneyError, canonical_text
 
 
 class PolicyBlockError(ValueError):
@@ -129,9 +130,14 @@ def parse_params(spec: GoalSpec, raw: Mapping[str, str]) -> dict[str, str]:
         if not value:
             raise ValueError(f"parameter {name} is empty")
         if param.type == "decimal":
+            # A money amount is written the way the app expects it (exactly two decimals), so the
+            # discovery agent types it that way too; more than two decimal places is refused before
+            # anything is dispatched (a target may accept it and be left in an unrecoverable state).
             try:
-                Decimal(value)
-            except InvalidOperation:
+                value = canonical_text(name, value)
+            except MoneyError as e:
+                if e.is_precision:
+                    raise PolicyBlockError(str(e)) from None
                 raise ValueError(f"parameter {name} is not a number") from None
         params[name] = value
     for group in spec.distinct_inputs:

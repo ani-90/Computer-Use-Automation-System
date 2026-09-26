@@ -1,0 +1,67 @@
+{
+  "instruction": "Call the transfer_funds tool now with from_account=[REDACTED], to_account=[REDACTED], amount=1.[REDACTED]. Do not ask me any questions and do not change the arguments.",
+  "catalog": [
+    {
+      "name": "transfer_funds",
+      "description": "Run the 'transfer_funds' capability against the live app.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "from_account": {
+            "type": "string"
+          },
+          "to_account": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_account",
+          "to_account",
+          "amount"
+        ]
+      }
+    }
+  ],
+  "first_response": [
+    {
+      "id": "toolu_01KxzNaEQavc16tjDtFon6fV",
+      "caller": {
+        "type": "direct"
+      },
+      "input": {
+        "from_account": "[REDACTED]",
+        "to_account": "[REDACTED]",
+        "amount": "1.[REDACTED]"
+      },
+      "name": "transfer_funds",
+      "type": "tool_use"
+    }
+  ],
+  "invoke_request": {
+    "from_account": "[REDACTED]",
+    "to_account": "[REDACTED]",
+    "amount": "1.[REDACTED]"
+  },
+  "invoke_response": {
+    "run_id": "7fbcfb1a-185b-4467-aefb-5aeb615c54bc",
+    "status": "POLICY_BLOCK",
+    "outputs": null,
+    "business_outcome": null,
+    "failure_detail": {
+      "step_index": -1,
+      "expected": "policy allow",
+      "observed": "amount supports at most 2 decimal places (USD)"
+    },
+    "escalations": [],
+    "llm_calls": 0
+  },
+  "final_response": [
+    {
+      "text": "The transfer_funds tool was called with your specified parameters, but it returned a POLICY_BLOCK status. The failure detail indicates that the amount \"1.[REDACTED]\" exceeds the allowed precision\u2014the system only supports amounts with at most 2 decimal places for USD currency.",
+      "type": "text"
+    }
+  ]
+}

@@ -1,19 +1,16 @@
-# Replay outcome: BUSINESS_OUTCOME (login_rejected)
+# Replay outcome: BUSINESS_OUTCOME_login_rejected
 
-Source run: `evidence/replay/cb2eb1eb-b632-4244-b50b-5e0b4e61afb2` (copied here in full).
+Source run: `c8dee263-956e-432f-93ef-5ae9cd3efd95` (this folder is a full copy of that run's evidence; the raw run folder itself is not committed).
 
-A deliberately wrong password (set for this one process only via a shell-level environment
-override — `.env` and the real credentials were never touched) lands on ParaBank's real rejection
-page: heading "Error!", paragraph "The username and password could not be verified." — confirmed
-live beforehand via a one-off probe script. The engine recognizes this exact page as a known
-answer, not a generic login failure.
+A wrong password. Login is the engine's fixed prelude, not an artifact step: ParaBank's real rejection page (`The username and password could not be verified.`) is recognized and reported as `business_outcome: login_rejected`.
 
-`result.json`: `status: "BUSINESS_OUTCOME"`, `business_outcome: "login_rejected"`.
+Command shape: `PARABANK_PASSWORD set to a wrong value for this one run`
 
-Files: `trace.json`, `log.jsonl`, `result.json`, `prelude-*.png` (prelude-02.png shows the actual
-rejection page — empty username/password fields, nothing typed leaked into the screenshot).
+Result:
+- `status: BUSINESS_OUTCOME`
+- `business_outcome: login_rejected`
+- `llm_calls: 0`
 
-No step-*.png files: the run never got past the login prelude, so no compiled step ever ran.
+Files: `log.jsonl`, `prelude-*.png`, `result.json`, `trace.json`.
 
-Credentials grepped clean, including the real password, the real username, and the deliberately
-wrong password that was typed — none appear anywhere in this folder. Every screenshot reviewed.
+Credentials and account numbers grepped clean; the saved files hold no real account number (the CLI's operator block, which does, is terminal-only); screenshots reviewed before inclusion.

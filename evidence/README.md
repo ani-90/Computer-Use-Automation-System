@@ -1,49 +1,40 @@
 # Evidence
 
-**Start here.** This is the front door — the three things the take-home asks for
-("a saved example artifact plus logs from both a discovery run and a replay run;
-ideally include one replay that hits an error or exceptional state") are the first
-three links below. Everything else in this folder goes further than asked and is
-labeled as such.
+**Start here.** The three things the take-home asks for ("a saved example artifact plus logs from both a discovery run and
+a replay run; ideally include one replay that hits an error or exceptional state") are the first four links below.
+Everything else goes further and is labeled as such.
 
 ## The required minimum
 
-1. **Artifact** — [`capabilities/transfer_funds.json`](../capabilities/transfer_funds.json)
-   (repo root, not duplicated here — the one file the Replay Engine actually reads).
-2. **Discovery run** — [`by-outcome/discovery/SUCCESS/`](by-outcome/discovery/SUCCESS/)
-   — the LLM discovering the whole flow from scratch, with `transcript.jsonl` (its own
-   reasoning), `trace.json`, screenshots, and `result.json`.
-3. **Replay run (happy path)** — [`by-outcome/replay/SUCCESS/`](by-outcome/replay/SUCCESS/)
-   — deterministic, `llm_calls: 0`, all outputs populated.
-4. **Replay run hitting an exceptional state** —
-   [`by-outcome/replay/BUSINESS_OUTCOME_invalid_account/`](by-outcome/replay/BUSINESS_OUTCOME_invalid_account/)
-   — a bad `to_account` input, detected and reported as a known answer
-   (`business_outcome: "invalid_account"`), not a generic crash.
+1. **Artifact** - [`capabilities/transfer_funds.json`](../capabilities/transfer_funds.json) (repo root, not duplicated
+   here; the one file the Replay Engine reads). Its `created_from` names the discovery run below.
+2. **Discovery run** - [`by-outcome/discovery/SUCCESS/`](by-outcome/discovery/SUCCESS/): the LLM discovering the whole flow
+   from scratch, with `transcript.jsonl` (its own reasoning), `trace.json`, screenshots and `result.json`.
+3. **Replay run (happy path)** - [`by-outcome/replay/SUCCESS/`](by-outcome/replay/SUCCESS/): deterministic, `llm_calls: 0`,
+   all outputs populated.
+4. **Replay runs hitting an exceptional state** -
+   [`BUSINESS_OUTCOME_invalid_account`](by-outcome/replay/BUSINESS_OUTCOME_invalid_account/) (a known answer, not a crash) and
+   [`HARD_FAILURE_dispatch_unverified`](by-outcome/replay/HARD_FAILURE_dispatch_unverified/) (the irreversible-action
+   case: Transfer clicked, confirmation never seen, so the engine stops, never clicks again and opens a ticket).
 
-## Bonus, not required: every other outcome actually produced
+## Bonus: every other outcome, and the agent path
 
-[`by-outcome/discovery/`](by-outcome/discovery/) and [`by-outcome/replay/`](by-outcome/replay/)
-hold one curated, reviewed example per *distinct outcome* the system actually produced live —
-not just the one exceptional state above. Each subfolder is named by the outcome and carries
-its own `README.md` explaining what it shows and why that run was picked. See
-[`by-outcome/discovery/README.md`](by-outcome/discovery/README.md) and
-[`by-outcome/replay/README.md`](by-outcome/replay/README.md) for the full index — it includes
-`BUSINESS_OUTCOME_login_rejected`, `POLICY_BLOCK` (an escalation cleanly rejected),
-`HARD_FAILURE` (a real click captured alongside a typed "reject" — the engine refuses to guess
-which signal is true), and a `SUCCESS` run that combines fault-injected auto-recovery (Phase 8)
-with a real human escalation approval (Phase 7) in one run.
+- [`by-outcome/replay/`](by-outcome/replay/) - 22 replay runs, one folder per scenario, named by outcome; its `README.md`
+  is the index. It covers all five outcomes (`SUCCESS`, `BUSINESS_OUTCOME`, `RECOVERABLE` handled by auto-recovery,
+  `HARD_FAILURE`, `POLICY_BLOCK`), human escalation (approve, reject, timeout, and a click that disagrees with the typed
+  word), decimal amounts, and the same scenarios over HTTP through the agent.
+- [`by-outcome/discovery/`](by-outcome/discovery/) - one example per discovery `stop_reason`.
+- [`agent_demo/`](agent_demo/) - seven redacted transcripts of the agent-facing HTTP interface.
 
-## Bonus, not required: the raw audit trail
+## How this evidence stays trustworthy
 
-Every folder directly under `evidence/` and `evidence/replay/` named by a bare UUID
-(`evidence/<run_id>/` for discovery, `evidence/replay/<run_id>/` for replay) is the raw,
-unedited output every single run writes on its own — not curated, not all individually
-reviewed, kept for completeness and as the literal audit trail the design calls for (every run
-gets its own `run_id`-keyed folder with `trace.json`, `log.jsonl`, screenshots, and a result).
-Some of these are superseded by, or duplicated in, `by-outcome/` above; several are earlier
-debugging runs kept as-is rather than cleaned up. `by-outcome/` is the better starting point for
-review — this is here for anyone who wants the full, unfiltered trail.
-
-All evidence in this folder has been grepped for the real service-account password and username
-(both absent everywhere) and every screenshot has been visually reviewed before being kept or
-referenced here.
+- **Every run has one `run_id`** (a UUID; our own correlation ID, not the bank's). It appears in `trace.json`,
+  `result.json`, `log.jsonl` and any ticket, and must be the same everywhere in a folder. Each curated folder's README
+  names its source run by that ID.
+- **Audit it yourself:** `python scripts/audit_evidence.py --tracked` checks that every run's ID agrees across its files
+  and with its README, that each ticket's file name matches its `ticket_id`, that transcripts cite runs present here, and
+  that the artifact's `created_from` resolves to a discovery run here. Exit code 0 means clean.
+- **Redaction happens at the write boundary:** account numbers and the service-account login never reach these files.
+  The CLI's operator block (real values, for a human verifying a ledger) is terminal-only and never written.
+- Every folder was grepped for the real service-account username and password (both absent everywhere), and screenshots
+  were viewed before being kept. Screenshots mask account numbers and transaction IDs with solid boxes.

@@ -21,7 +21,7 @@
     "confirmation_text": {
       "shape": "nonempty",
       "combine": true,
-      "description": "The confirmation message shown after the transfer. If the message is split across several elements, record each part under this name."
+      "description": "The confirmation sentence shown after the transfer, which states the amount moved and the two accounts involved, not just its heading. If the message is split across several elements, record each part under this name."
     },
     "new_balance": {
       "shape": "money",

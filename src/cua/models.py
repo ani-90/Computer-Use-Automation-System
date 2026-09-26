@@ -131,6 +131,10 @@ class Capability(_Strict):
     # browser is touched, same as Discovery's own parameter validation.
     distinct_inputs: list[list[str]] = Field(default_factory=list)
     steps: list[Step]
+    # The discovery run this artifact was compiled from (its run_id, and so its evidence folder's
+    # name): the artifact -> discovery evidence link an auditor follows. None for an artifact
+    # written before this field existed.
+    created_from: str | None = None
 
 
 class Outputs(_Strict):

@@ -1,0 +1,18 @@
+{"ts": "2026-09-26T09:59:49.298311+00:00", "run_id": "ce93c1ff-7fba-4097-a864-7c2be3c3a4dc", "event": "act", "data": {"kind": "type", "description": "textbox \"Username\""}}
+{"ts": "2026-09-26T09:59:50.584525+00:00", "run_id": "ce93c1ff-7fba-4097-a864-7c2be3c3a4dc", "event": "act", "data": {"kind": "type", "description": "textbox \"Password\""}}
+{"ts": "2026-09-26T09:59:50.603666+00:00", "run_id": "ce93c1ff-7fba-4097-a864-7c2be3c3a4dc", "event": "act", "data": {"kind": "click", "description": "button \"Log In\""}}
+{"ts": "2026-09-26T09:59:53.962731+00:00", "run_id": "ce93c1ff-7fba-4097-a864-7c2be3c3a4dc", "event": "act", "data": {"kind": "extract", "description": "cell[row \"[REDACTED]\", \"Balance*\"]"}}
+{"ts": "2026-09-26T09:59:56.493164+00:00", "run_id": "ce93c1ff-7fba-4097-a864-7c2be3c3a4dc", "event": "act", "data": {"kind": "click", "description": "link \"Transfer Funds\""}}
+{"ts": "2026-09-26T10:00:00.866701+00:00", "run_id": "ce93c1ff-7fba-4097-a864-7c2be3c3a4dc", "event": "act", "data": {"kind": "type", "description": "textbox \"Amount: $\""}}
+{"ts": "2026-09-26T10:00:04.461666+00:00", "run_id": "ce93c1ff-7fba-4097-a864-7c2be3c3a4dc", "event": "act", "data": {"kind": "select", "description": "combobox \"to account #\""}}
+{"ts": "2026-09-26T10:00:08.255382+00:00", "run_id": "ce93c1ff-7fba-4097-a864-7c2be3c3a4dc", "event": "act", "data": {"kind": "select", "description": "combobox \"From account #\""}}
+{"ts": "2026-09-26T10:00:10.607400+00:00", "run_id": "ce93c1ff-7fba-4097-a864-7c2be3c3a4dc", "event": "act", "data": {"kind": "click", "description": "button \"Transfer\""}}
+{"ts": "2026-09-26T10:00:13.122701+00:00", "run_id": "ce93c1ff-7fba-4097-a864-7c2be3c3a4dc", "event": "act", "data": {"kind": "extract", "description": "paragraph \"$1.75 has been transferred from account #[REDACTED] to account #[REDACTED].\""}}
+{"ts": "2026-09-26T10:00:15.252487+00:00", "run_id": "ce93c1ff-7fba-4097-a864-7c2be3c3a4dc", "event": "act", "data": {"kind": "click", "description": "link \"Accounts Overview\""}}
+{"ts": "2026-09-26T10:00:19.889098+00:00", "run_id": "ce93c1ff-7fba-4097-a864-7c2be3c3a4dc", "event": "act", "data": {"kind": "extract", "description": "cell[row \"[REDACTED]\", \"Balance*\"]"}}
+{"ts": "2026-09-26T10:00:22.496140+00:00", "run_id": "ce93c1ff-7fba-4097-a864-7c2be3c3a4dc", "event": "act", "data": {"kind": "click", "description": "link \"Find Transactions\""}}
+{"ts": "2026-09-26T10:00:27.244904+00:00", "run_id": "ce93c1ff-7fba-4097-a864-7c2be3c3a4dc", "event": "act", "data": {"kind": "type", "description": "textbox \"Find by Amount:\""}}
+{"ts": "2026-09-26T10:00:31.295360+00:00", "run_id": "ce93c1ff-7fba-4097-a864-7c2be3c3a4dc", "event": "act", "data": {"kind": "select", "description": "combobox \"Select an account:\""}}
+{"ts": "2026-09-26T10:00:33.942587+00:00", "run_id": "ce93c1ff-7fba-4097-a864-7c2be3c3a4dc", "event": "act", "data": {"kind": "click", "description": "button \"Find Transactions\" #3"}}
+{"ts": "2026-09-26T10:00:36.602845+00:00", "run_id": "ce93c1ff-7fba-4097-a864-7c2be3c3a4dc", "event": "act", "data": {"kind": "click", "description": "link \"Funds Transfer Sent\""}}
+{"ts": "2026-09-26T10:00:40.788878+00:00", "run_id": "ce93c1ff-7fba-4097-a864-7c2be3c3a4dc", "event": "act", "data": {"kind": "extract", "description": "cell[row \"Transaction ID:\", col 1]"}}

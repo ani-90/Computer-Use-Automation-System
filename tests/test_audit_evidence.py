@@ -234,3 +234,69 @@ def test_the_report_never_prints_file_contents(tmp_path, capsys):
     )
     audit_mod.main(["--evidence-dir", str(tmp_path)])
     assert "hunter2-do-not-print" not in capsys.readouterr().out
+
+
+# --- artifacts: capabilities/*.json must be traceable to their discovery run ---------------------------
+
+
+def write_artifact(folder: Path, created_from) -> Path:
+    folder.mkdir(parents=True, exist_ok=True)
+    body = {"name": "transfer_funds", "version": "2", "steps": []}
+    if created_from is not None:
+        body["created_from"] = created_from
+    path = folder / "transfer_funds.json"
+    path.write_text(json.dumps(body), encoding="utf-8")
+    return path
+
+
+def test_an_artifact_whose_created_from_is_a_raw_discovery_run_in_scope_passes(tmp_path):
+    write_run(tmp_path / "evidence" / RUN)  # a raw discovery run
+    write_artifact(tmp_path / "capabilities", RUN)
+    reports, warnings = audit_mod.audit(tmp_path / "evidence", capabilities=tmp_path / "capabilities")
+    artifact = by_path(reports)["capabilities/transfer_funds.json"]
+    assert artifact.kind == "artifact" and artifact.problems == [] and warnings == []
+
+
+def test_an_artifact_may_name_a_curated_discovery_run(tmp_path):
+    evidence = tmp_path / "evidence"
+    folder = write_run(evidence / "by-outcome" / "discovery" / "SUCCESS", RUN)
+    (folder / "README.md").write_text(f"Source run: `evidence/{RUN}` (copied here in full).\n", encoding="utf-8")
+    write_artifact(tmp_path / "capabilities", RUN)
+    reports, _ = audit_mod.audit(evidence, capabilities=tmp_path / "capabilities")
+    assert by_path(reports)["capabilities/transfer_funds.json"].problems == []
+
+
+def test_an_artifact_naming_a_discovery_run_with_no_evidence_fails(tmp_path):
+    write_run(tmp_path / "evidence" / RUN)
+    write_artifact(tmp_path / "capabilities", OTHER)
+    reports, _ = audit_mod.audit(tmp_path / "evidence", capabilities=tmp_path / "capabilities")
+    problems = by_path(reports)["capabilities/transfer_funds.json"].problems
+    assert any(OTHER in p and "no evidence in scope" in p for p in problems)
+
+
+def test_a_replay_run_is_not_a_valid_source_for_an_artifact(tmp_path):
+    write_run(tmp_path / "evidence" / "replay" / RUN)  # a replay, not a discovery run
+    write_artifact(tmp_path / "capabilities", RUN)
+    reports, _ = audit_mod.audit(tmp_path / "evidence", capabilities=tmp_path / "capabilities")
+    assert by_path(reports)["capabilities/transfer_funds.json"].problems
+
+
+def test_an_artifact_with_no_created_from_is_a_warning_not_a_failure(tmp_path):
+    (tmp_path / "evidence").mkdir()
+    write_artifact(tmp_path / "capabilities", None)
+    reports, _ = audit_mod.audit(tmp_path / "evidence", capabilities=tmp_path / "capabilities")
+    artifact = by_path(reports)["capabilities/transfer_funds.json"]
+    assert artifact.problems == [] and any("no created_from" in w for w in artifact.warnings)
+
+
+def test_a_created_from_that_is_not_a_run_id_fails(tmp_path):
+    (tmp_path / "evidence").mkdir()
+    write_artifact(tmp_path / "capabilities", "not-a-run-id")
+    reports, _ = audit_mod.audit(tmp_path / "evidence", capabilities=tmp_path / "capabilities")
+    assert by_path(reports)["capabilities/transfer_funds.json"].problems
+
+
+def test_without_a_capabilities_directory_no_artifact_is_audited(tmp_path):
+    write_run(tmp_path / "replay" / RUN)
+    reports, _ = audit_mod.audit(tmp_path)
+    assert [r.kind for r in reports] == ["raw-replay"]

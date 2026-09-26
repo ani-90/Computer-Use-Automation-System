@@ -11,6 +11,8 @@ Three kinds of folder, three rules:
   curated      evidence/by-outcome/<kind>/<OUTCOME>/: named for the outcome, so its README must name the
                run it was copied from ("Source run: `.../<uuid>`"), and every run_id inside must equal that.
   transcripts  evidence/agent_demo/*.json: any run_id they cite should resolve to a run in the repo (warning).
+  artifacts    capabilities/*.json: `created_from` must name a discovery run whose evidence is present
+               (an artifact that names no run is a warning: it cannot be traced back).
 
 Only ids, file names and folder names are ever printed — never file contents. Exit code 0 means clean.
 """
@@ -34,7 +36,7 @@ _MUST_CARRY_RUN_ID = ("trace.json", "result.json", "log.jsonl")
 @dataclass
 class FolderReport:
     path: str  # relative to the evidence dir, forward slashes
-    kind: str  # raw-discovery | raw-replay | curated
+    kind: str  # raw-discovery | raw-replay | curated | artifact
     expected: str | None = None
     problems: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
@@ -136,8 +138,35 @@ def _group_by_folder(evidence: Path, files: list[Path]) -> dict[tuple[str, ...],
     return grouped
 
 
-def audit(evidence: Path, files: list[Path] | None = None) -> tuple[list[FolderReport], list[str]]:
-    """Returns (one report per run folder, global warnings)."""
+def _audit_artifacts(capabilities: Path, reports: list[FolderReport]) -> list[FolderReport]:
+    """Each compiled artifact must be traceable to the discovery run that produced it."""
+    discovery_runs = {
+        r.expected for r in reports
+        if r.expected and (r.kind == "raw-discovery" or r.path.startswith("by-outcome/discovery/"))
+    }
+    out: list[FolderReport] = []
+    for path in sorted(capabilities.glob("*.json")):
+        report = FolderReport(path=f"capabilities/{path.name}", kind="artifact")
+        documents, error = _read_json_values(path)
+        if error:
+            report.problems.append(error)
+        else:
+            source = documents[0].get("created_from") if isinstance(documents[0], dict) else None
+            report.expected = source
+            if source is None:
+                report.warnings.append("no created_from: this artifact cannot be traced to a discovery run")
+            elif not _UUID_RE.match(str(source)):
+                report.problems.append("created_from is not a run id (uuid)")
+            elif source not in discovery_runs:
+                report.problems.append(f"created_from {source} names a discovery run with no evidence in scope")
+        out.append(report)
+    return out
+
+
+def audit(
+    evidence: Path, files: list[Path] | None = None, capabilities: Path | None = None
+) -> tuple[list[FolderReport], list[str]]:
+    """Returns (one report per run folder or artifact, global warnings)."""
     if files is None:
         files = [p for p in evidence.rglob("*") if p.is_file()]
     grouped = _group_by_folder(evidence, files)
@@ -155,7 +184,10 @@ def audit(evidence: Path, files: list[Path] | None = None) -> tuple[list[FolderR
             continue
         reports.append(_audit_folder(evidence, rel, kind, folder_files))
 
-    known = {r.expected for r in reports if r.expected}
+    if capabilities is not None and capabilities.is_dir():
+        reports += _audit_artifacts(capabilities, reports)
+
+    known = {r.expected for r in reports if r.expected and r.kind != "artifact"}
     for path in sorted(p for p in files if p.parent.relative_to(evidence).parts[:1] == ("agent_demo",)):
         if path.suffix != ".json":
             continue
@@ -190,7 +222,9 @@ def main(argv: list[str] | None = None) -> int:
     if not evidence.is_dir():
         print(f"error: {evidence} is not a directory", file=sys.stderr)
         return 2
-    reports, warnings = audit(evidence, _tracked_files(evidence) if args.tracked else None)
+    reports, warnings = audit(
+        evidence, _tracked_files(evidence) if args.tracked else None, capabilities=evidence.parent / "capabilities"
+    )
 
     failed = 0
     for report in reports:
@@ -205,7 +239,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"WARN  {line}")
 
     scope = "tracked by git" if args.tracked else "on disk"
-    print(f"\n{len(reports)} run folder(s) audited ({scope}): {len(reports) - failed} clean, {failed} with problems, "
+    print(f"\n{len(reports)} run folder(s)/artifact(s) audited ({scope}): {len(reports) - failed} clean, {failed} with problems, "
           f"{len(warnings)} warning(s).")
     return 1 if failed or (args.strict and warnings) else 0
 

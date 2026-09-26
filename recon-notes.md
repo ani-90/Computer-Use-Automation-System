@@ -39,6 +39,14 @@ Account numbers are deliberately not recorded here; they are demo parameters, ne
 
 ## ParaBank behaviour confirmed manually
 - No overdraft protection: an account can go negative (account B is evidence of this).
+- **Sub-cent amounts corrupt the account (found by hand, 2026-09-26).** Transferring `1.98484` was accepted:
+  the confirmation showed `$1.98`, but the unrounded value left the account with a balance of five decimal
+  places. Afterwards every page that formats that balance failed with an internal error, permanently
+  (container log: `java.lang.ArithmeticException: Rounding necessary`; a restart does not clear it because
+  the balance is stored data — only recreating the container did). Target validation cannot be assumed, so
+  the capability contract enforces money precision (at most 2 decimal places) before anything is dispatched.
+- ParaBank prints money with exactly two decimals in its confirmation (`$5.00`, `$1.44`), so any artifact
+  that hardcodes the app's `.00` after the amount can only confirm whole-number transfers.
 
 ## Adapter findings (Phase 2 smoke test)
 - Login: the Username and Password inputs have no accessible name. The label is a plain paragraph just

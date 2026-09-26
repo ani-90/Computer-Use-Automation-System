@@ -1,0 +1,13 @@
+{
+  "run_id": "6b251114-d056-4323-a374-50584b7980d5",
+  "status": "POLICY_BLOCK",
+  "outputs": null,
+  "business_outcome": null,
+  "failure_detail": {
+    "step_index": -1,
+    "expected": "policy allow",
+    "observed": "from_account and to_account must be different"
+  },
+  "escalations": [],
+  "llm_calls": 0
+}

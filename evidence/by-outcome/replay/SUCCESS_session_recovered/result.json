@@ -1,0 +1,13 @@
+{
+  "run_id": "02b36b70-3ec3-4438-928d-5d679510b728",
+  "status": "SUCCESS",
+  "outputs": {
+    "confirmation_text": "$5.00 has been transferred from account #[REDACTED] to account #[REDACTED].",
+    "new_balance": "$390.21",
+    "transaction_id": "[REDACTED]"
+  },
+  "business_outcome": null,
+  "failure_detail": null,
+  "escalations": [],
+  "llm_calls": 0
+}

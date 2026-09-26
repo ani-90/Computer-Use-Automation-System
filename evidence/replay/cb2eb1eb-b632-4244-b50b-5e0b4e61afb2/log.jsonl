@@ -1,3 +1,0 @@
-{"ts": "2026-09-22T22:56:26.778579+00:00", "run_id": "cb2eb1eb-b632-4244-b50b-5e0b4e61afb2", "event": "act", "data": {"kind": "type", "description": "textbox \"Username\""}}
-{"ts": "2026-09-22T22:56:28.036075+00:00", "run_id": "cb2eb1eb-b632-4244-b50b-5e0b4e61afb2", "event": "act", "data": {"kind": "type", "description": "textbox \"Password\""}}
-{"ts": "2026-09-22T22:56:28.064474+00:00", "run_id": "cb2eb1eb-b632-4244-b50b-5e0b4e61afb2", "event": "act", "data": {"kind": "click", "description": "button \"Log In\""}}

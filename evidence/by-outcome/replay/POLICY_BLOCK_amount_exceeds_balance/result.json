@@ -1,0 +1,13 @@
+{
+  "run_id": "a22def61-93d2-4319-a6b3-27ee6406f27f",
+  "status": "POLICY_BLOCK",
+  "outputs": null,
+  "business_outcome": null,
+  "failure_detail": {
+    "step_index": 5,
+    "expected": "policy allow",
+    "observed": "amount exceeds balance"
+  },
+  "escalations": [],
+  "llm_calls": 0
+}

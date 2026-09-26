@@ -134,3 +134,40 @@ def test_evaluate_shape_checks_money_and_nonempty():
     assert evaluate_shape("anything", "nonempty") is True
     assert evaluate_shape("", "nonempty") is False
     assert evaluate_shape(None, "nonempty") is False
+
+
+# --- money-typed field checks compare by value, not by spelling ------------------------------------------
+
+
+def _field_obs(value):
+    target = loc("textbox", role="textbox")
+    return target, Observation(
+        "http://h/x", b"", b"", [Candidate(1, "textbox", "", None, None, target, value=value, filled=True)], []
+    )
+
+
+def test_a_money_typed_field_check_compares_decimal_values():
+    target, _ = _field_obs("x")
+    cond = Condition(kind="field_value_equals", target=target, value="{{amount:money}}")
+    for shown, params, expected in [
+        ("1.50", {"amount": "1.5"}, True),  # typed canonical, asked for 1.5
+        ("1.5", {"amount": "1.50"}, True),  # a page that reformatted what was typed
+        ("$1.50", {"amount": "1.5"}, True),
+        ("1,000.00", {"amount": "1000"}, True),
+        ("1.50", {"amount": "1.51"}, False),  # a genuinely different amount
+        ("", {"amount": "1.5"}, False),
+        (None, {"amount": "1.5"}, False),
+        ("abc", {"amount": "1.5"}, False),  # not a money value at all
+        ("1.50", {"amount": "abc"}, False),  # an amount that cannot be rendered never matches anything
+        ("1.50", {"amount": "1.98484"}, False),
+    ]:
+        _, obs = _field_obs(shown)
+        assert evaluate(cond, FakeAdapter(set()), obs, params) is expected, (shown, params)
+
+
+def test_a_field_check_that_is_not_money_typed_is_still_an_exact_string_match():
+    target, _ = _field_obs("x")
+    cond = Condition(kind="field_value_equals", target=target, value="{{amount}}")
+    _, obs = _field_obs("1.50")
+    assert evaluate(cond, FakeAdapter(set()), obs, {"amount": "1.50"}) is True
+    assert evaluate(cond, FakeAdapter(set()), obs, {"amount": "1.5"}) is False  # no money rule applied

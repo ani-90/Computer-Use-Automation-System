@@ -56,15 +56,25 @@ def test_spec_rejects_inconsistent_definitions():
 
 def test_parse_params_validates_names_and_values():
     spec = load()
-    assert parse_params(spec, {**PARAMS, "amount": " 5 "})["amount"] == "5"
+    assert parse_params(spec, {**PARAMS, "amount": " 5 "})["amount"] == "5.00"  # canonical money form
     with pytest.raises(ValueError):
         parse_params(spec, {"from_account": "a"})  # missing
     with pytest.raises(ValueError):
         parse_params(spec, {**PARAMS, "extra": "x"})  # unknown
     with pytest.raises(ValueError):
         parse_params(spec, {**PARAMS, "to_account": " "})  # empty
-    with pytest.raises(ValueError):
-        parse_params(spec, {**PARAMS, "amount": "lots"})  # not a number
+    for junk in ("lots", "NaN", "Infinity", "1e2", "1,5"):
+        with pytest.raises(ValueError, match="not a number"):
+            parse_params(spec, {**PARAMS, "amount": junk})  # never reaches a comparison that could crash
+
+
+def test_an_amount_is_written_in_canonical_money_form_and_more_than_two_decimals_is_a_policy_block():
+    spec = load()
+    for given, expected in [("1.5", "1.50"), ("3", "3.00"), ("1.45", "1.45"), ("5.00", "5.00"), ("1.500", "1.50")]:
+        assert parse_params(spec, {**PARAMS, "amount": given})["amount"] == expected
+    for bad in ("1.98484", "1.984", "0.001"):
+        with pytest.raises(PolicyBlockError, match="at most 2 decimal places"):
+            parse_params(spec, {**PARAMS, "amount": bad})
 
 
 def test_the_two_accounts_must_differ_before_anything_is_dispatched():

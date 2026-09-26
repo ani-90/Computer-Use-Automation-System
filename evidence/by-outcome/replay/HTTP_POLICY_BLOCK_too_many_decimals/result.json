@@ -1,0 +1,13 @@
+{
+  "run_id": "7fbcfb1a-185b-4467-aefb-5aeb615c54bc",
+  "status": "POLICY_BLOCK",
+  "outputs": null,
+  "business_outcome": null,
+  "failure_detail": {
+    "step_index": -1,
+    "expected": "policy allow",
+    "observed": "amount supports at most 2 decimal places (USD)"
+  },
+  "escalations": [],
+  "llm_calls": 0
+}

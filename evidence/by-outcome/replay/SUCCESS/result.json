@@ -1,29 +1,13 @@
 {
-  "run_id": "10cf67b0-50ac-49db-84d9-7e6e8d912d9e",
+  "run_id": "39dc7e0d-dded-4985-8e50-448faa6b1244",
   "status": "SUCCESS",
   "outputs": {
-    "confirmation_text": "$101.00 has been transferred from account #[REDACTED] to account #[REDACTED].",
-    "new_balance": "$108.00",
+    "confirmation_text": "$5.00 has been transferred from account #[REDACTED] to account #[REDACTED].",
+    "new_balance": "$403.82",
     "transaction_id": "[REDACTED]"
   },
   "business_outcome": null,
   "failure_detail": null,
-  "escalations": [
-    {
-      "ticket_id": "1e3f0d37-f48d-43c5-b2e0-62f53be6d034",
-      "run_id": "10cf67b0-50ac-49db-84d9-7e6e8d912d9e",
-      "step_index": 5,
-      "reason": "amount exceeds approval threshold",
-      "status": "resolved",
-      "decision": "approve",
-      "captured_human_actions": [
-        {
-          "tag": "INPUT",
-          "text": "Transfer",
-          "url": "http://localhost:8080/parabank/transfer.htm"
-        }
-      ]
-    }
-  ],
+  "escalations": [],
   "llm_calls": 0
 }

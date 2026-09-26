@@ -1,0 +1,13 @@
+{
+  "run_id": "2ce41c9c-99ae-479c-b1f9-926005d9546b",
+  "status": "HARD_FAILURE",
+  "outputs": null,
+  "business_outcome": null,
+  "failure_detail": {
+    "step_index": -1,
+    "expected": "valid parameters",
+    "observed": "amount is not a valid decimal"
+  },
+  "escalations": [],
+  "llm_calls": 0
+}

@@ -1,5 +1,5 @@
 {
-  "run_id": "53dea9b9-c7bb-49d9-8664-7424fee180e4",
+  "run_id": "11f9e42e-216b-428e-90b9-8b5fbc51856b",
   "steps": [
     {
       "step_no": 0,
@@ -57,78 +57,6 @@
       "phase": "step",
       "action": "extract",
       "target": "cell[row \"[REDACTED]\", \"Balance*\"]",
-      "value": "$287.00",
-      "gate": {
-        "verdict": "allow",
-        "reason": "no amount involved"
-      },
-      "precondition_status": "ok",
-      "wait_status": "ok",
-      "checkpoint_status": "ok",
-      "result": "ok",
-      "error": null,
-      "url_after": "http://localhost:8080/parabank/overview.htm",
-      "screenshot": "step-00.png"
-    },
-    {
-      "step_no": 1,
-      "phase": "step",
-      "action": "click",
-      "target": "link \"Transfer Funds\"",
-      "value": null,
-      "gate": {
-        "verdict": "allow",
-        "reason": "no amount involved"
-      },
-      "precondition_status": "ok",
-      "wait_status": "ok",
-      "checkpoint_status": "ok",
-      "result": "ok",
-      "error": null,
-      "url_after": "http://localhost:8080/parabank/transfer.htm",
-      "screenshot": "step-01.png"
-    },
-    {
-      "step_no": 2,
-      "phase": "step",
-      "action": "type",
-      "target": "textbox \"Amount: $\"",
-      "value": null,
-      "gate": {
-        "verdict": "allow",
-        "reason": "no amount involved"
-      },
-      "precondition_status": "ok",
-      "wait_status": "ok",
-      "checkpoint_status": "ok",
-      "result": "ok",
-      "error": null,
-      "url_after": "http://localhost:8080/parabank/transfer.htm",
-      "screenshot": "step-02.png"
-    },
-    {
-      "step_no": 3,
-      "phase": "step",
-      "action": "select",
-      "target": "combobox \"From account #\"",
-      "value": null,
-      "gate": {
-        "verdict": "allow",
-        "reason": "no amount involved"
-      },
-      "precondition_status": "ok",
-      "wait_status": "ok",
-      "checkpoint_status": "ok",
-      "result": "ok",
-      "error": null,
-      "url_after": "http://localhost:8080/parabank/transfer.htm",
-      "screenshot": "step-03.png"
-    },
-    {
-      "step_no": 4,
-      "phase": "step",
-      "action": "select",
-      "target": "combobox \"to account #\"",
       "value": null,
       "gate": {
         "verdict": "allow",
@@ -138,9 +66,9 @@
       "wait_status": "timed_out",
       "checkpoint_status": "n/a",
       "result": "error",
-      "error": "wait option_present timed out",
-      "url_after": "http://localhost:8080/parabank/transfer.htm",
-      "screenshot": "step-04.png"
+      "error": "wait element_visible timed out",
+      "url_after": "http://localhost:8080/parabank/overview.htm",
+      "screenshot": "step-00.png"
     }
   ]
 }

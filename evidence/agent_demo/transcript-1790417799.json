@@ -1,0 +1,78 @@
+{
+  "instruction": "transfer 5 dollars from account [REDACTED] to account [REDACTED]",
+  "catalog": [
+    {
+      "name": "transfer_funds",
+      "description": "Run the 'transfer_funds' capability against the live app.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "from_account": {
+            "type": "string"
+          },
+          "to_account": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_account",
+          "to_account",
+          "amount"
+        ]
+      }
+    }
+  ],
+  "first_response": [
+    {
+      "id": "toolu_01NSC6JxgpWYvvtcsNR29JMe",
+      "caller": {
+        "type": "direct"
+      },
+      "input": {
+        "from_account": "[REDACTED]",
+        "to_account": "[REDACTED]",
+        "amount": "5"
+      },
+      "name": "transfer_funds",
+      "type": "tool_use"
+    }
+  ],
+  "invoke_request": {
+    "from_account": "[REDACTED]",
+    "to_account": "[REDACTED]",
+    "amount": "5"
+  },
+  "invoke_response": {
+    "run_id": "8afb33dc-a928-4807-af2f-3e7ed9dd5037",
+    "status": "HARD_FAILURE",
+    "outputs": null,
+    "business_outcome": "dispatch_unverified",
+    "failure_detail": {
+      "step_index": 5,
+      "expected": "wait element_visible",
+      "observed": "the transfer may or may not have posted \u2014 verify before any retry"
+    },
+    "escalations": [
+      {
+        "ticket_id": "ead1d70a-be26-4df8-835d-cd8c40cba55a",
+        "run_id": "8afb33dc-a928-4807-af2f-3e7ed9dd5037",
+        "step_index": 5,
+        "reason": "money-moving step dispatched but its confirmation was never verified",
+        "status": "open",
+        "decision": null,
+        "captured_human_actions": [],
+        "note": null
+      }
+    ],
+    "llm_calls": 0
+  },
+  "final_response": [
+    {
+      "text": "I attempted to transfer $5 from account [REDACTED] to account [REDACTED], but the transaction encountered a verification issue. The system indicates that the transfer may or may not have been completed.\n\n**What happened:**\n- The transfer was dispatched, but the system couldn't verify its confirmation\n- An escalation ticket (ID: ead1d70a-be26-4df8-835d-cd8c40cba55a) has been opened for investigation\n\n**Recommendation:**\nPlease verify the account balances directly to confirm whether the $5 transfer actually posted to both accounts before attempting any retry. This will help ensure the funds weren't transferred twice.",
+      "type": "text"
+    }
+  ]
+}

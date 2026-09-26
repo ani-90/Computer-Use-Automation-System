@@ -29,6 +29,7 @@ from cua.models import (
     Step,
     WaitStrategy,
 )
+from cua.money import MoneyError, canonical_text
 from cua.trace import DiscoveryResult, TraceStep
 
 _ACTION_TOOLS = {"click", "type", "select", "navigate", "extract"}
@@ -46,7 +47,8 @@ def compile_capability(result: DiscoveryResult, spec: GoalSpec) -> Capability:
     ok_steps = [s for s in result.steps if s.result == "ok" and s.tool in _ACTION_TOOLS]
     prelude_end = _prelude_length(ok_steps)
     last_extract_at = _last_extract_index(ok_steps)
-    literal_to_placeholder = _tag_map(ok_steps)
+    decimal_params = frozenset(n for n, p in spec.inputs.items() if p.type == "decimal")
+    literal_to_placeholder = _tag_map(ok_steps, decimal_params)
 
     amount_placeholder = f"{{{{{spec.amount_input}}}}}"
     steps: list[Step] = []
@@ -84,14 +86,25 @@ def compile_capability(result: DiscoveryResult, spec: GoalSpec) -> Capability:
         # since_nav was tracking, so a later step's precondition must not assert they still hold.
         if ts.tool in {"click", "navigate"} or (prev_url is not None and ts.url_after != prev_url):
             since_nav = []
-        prev_checkpoint = ts.checkpoint
+        # A read the compiler drops (an earlier duplicate of a later read of the same value) is not
+        # in the artifact, so what it asserted is not a state the artifact ever verifies: carrying
+        # it forward would REPLACE the surviving step's real precondition (e.g. "login landed on
+        # Accounts Overview") with "the value being read already exists" — which also pre-empts the
+        # error mapping for the value being absent (an invalid account). The prelude is dropped
+        # too, but its end state is exactly what the first step must start from.
+        if emit:
+            prev_checkpoint = ts.checkpoint
+        elif i < prelude_end:
+            prev_checkpoint = [c for c in ts.checkpoint if not _is_free_text(c)]
         prev_url = ts.url_after
 
     steps = _finalize_transaction_lookup(steps)
+    steps = [_money_typed(s, decimal_params) for s in steps]
 
     return Capability(
         schema_version="1.0",
-        version="1",
+        version="2",  # 2: money parameters are {{param:money}}, never a hardcoded ".00" (1 predates that)
+        created_from=result.run_id,
         name=spec.name,
         inputs=spec.inputs,
         outputs={
@@ -161,15 +174,18 @@ def _last_extract_index(steps: list[TraceStep]) -> dict[str | None, int]:
     return last
 
 
-def _tag_map(steps: list[TraceStep]) -> dict[str, str]:
+def _tag_map(steps: list[TraceStep], decimal_params: frozenset[str] = frozenset()) -> dict[str, str]:
     """Real value -> {{param}}, longest values first so a substring never wins first.
 
     The same parameter can be typed in more than one literal form across a run (e.g. "12" on
     one page, "12.00" on another — both are the same amount, a Decimal comparison treats them
-    as equal). Keeping every variant is dangerous: a longer variant like "12.00" can exactly
-    match ParaBank's own "$12.00" formatting elsewhere and swallow its ".00" along with the
-    digits, even though that ".00" was never part of what was typed. Only the shortest variant
-    per parameter is kept — never at risk of over-matching a coincidental longer occurrence.
+    as equal). Only the shortest typed variant per parameter is kept, so a coincidental longer
+    occurrence is never over-matched.
+
+    A money parameter is ALSO tagged by its canonical two-decimal form ("5" -> "5.00", "1.5" ->
+    "1.50"), which is how the app prints it back ("$5.00 has been transferred"). Longest-first
+    puts that whole token ahead of the bare digits, so the app's own ".00" is never left behind
+    as a hardcoded suffix — the bug that made every non-whole amount fail its confirmation.
     """
     by_param: dict[str, str] = {}
     for s in steps:
@@ -177,8 +193,34 @@ def _tag_map(steps: list[TraceStep]) -> dict[str, str]:
             current = by_param.get(s.param)
             if current is None or len(s.value) < len(current):
                 by_param[s.param] = s.value
-    pairs = {v: p for p, v in by_param.items()}
-    return dict(sorted(((v, f"{{{{{p}}}}}") for v, p in pairs.items()), key=lambda kv: -len(kv[0])))
+    entries: dict[str, str] = {}
+    for param, literal in by_param.items():
+        entries[literal] = f"{{{{{param}}}}}"
+        if param in decimal_params:
+            try:
+                entries[canonical_text(param, literal)] = f"{{{{{param}}}}}"
+            except MoneyError:
+                pass  # not a usable amount: only its literal form is tagged
+    return dict(sorted(entries.items(), key=lambda kv: -len(kv[0])))
+
+
+def _is_free_text(cond: Condition) -> bool:
+    """A condition on a free-text paragraph. What login leaves behind seeds the first step's
+    precondition, and there a paragraph is the customer's own content — found live: a greeting
+    "Welcome <their name>", which pinned the artifact to one customer and put that name in the
+    repo. Page structure (the URL, headings, links, buttons, fields) identifies the page without
+    naming anyone, so only that is kept."""
+    return cond.kind == "element_visible" and cond.target is not None and cond.target.description.startswith("paragraph ")
+
+
+def _money_typed(step: Step, decimal_params: frozenset[str]) -> Step:
+    """Every use of a money parameter becomes {{param:money}}: the value typed into a field, a
+    search box, a field-equals check, and the text the app prints back. One canonical two-decimal
+    form everywhere, so a raw "1.500" is never typed and a hardcoded ".00" never appears."""
+    text = step.model_dump_json()
+    for name in decimal_params:
+        text = text.replace("{{" + name + "}}", "{{" + name + ":money}}")
+    return Step.model_validate_json(text)
 
 
 def _substitute(text: str, tag_map: dict[str, str]) -> str:

@@ -6,6 +6,8 @@ frozen trace is redacted before it hits disk, so real values only ever exist in 
 compiler must be developed against fixtures for exactly that reason.
 """
 
+import re
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -14,11 +16,15 @@ from cua.compiler import CompileError, _finalize_transaction_lookup, compile_cap
 from cua.enums import Outcome, StopReason
 from cua.goal import GoalSpec
 from cua.models import Condition, Locator, LocatorCandidate, Step, WaitStrategy
+from cua.money import canonical
 from cua.trace import DiscoveryResult, TraceStep
 
 SPEC_PATH = Path(__file__).resolve().parent.parent / "goals" / "transfer_funds.json"
 FROM, TO, AMOUNT = "111111", "222222", "11"
-SENTENCE = f"${AMOUNT}.00 has been transferred from account #{FROM} to account #{TO}."
+def sentence_for(amount: str) -> str:
+    """What the app prints back: the amount in canonical two-decimal money form."""
+    return f"${canonical(Decimal(amount))} has been transferred from account #{FROM} to account #{TO}."
+
 
 
 def spec() -> GoalSpec:
@@ -63,7 +69,8 @@ def ts(n: int, **kw) -> TraceStep:
     return TraceStep(**base)
 
 
-def build_trace() -> list[TraceStep]:
+def build_trace(amount: str = AMOUNT) -> list[TraceStep]:
+    sentence = sentence_for(amount)
     overview_ok = [
         Condition(kind="url_matches", value="/parabank/overview.htm"),
         Condition(kind="element_visible", target=heading("Accounts Overview")),
@@ -87,7 +94,7 @@ def build_trace() -> list[TraceStep]:
         ts(5, tool="click", target=named("link", "Transfer Funds"), checkpoint=transfer_ok),
         # --- the transfer form
         ts(
-            6, tool="type", provenance="parameter", param="amount", value=AMOUNT,
+            6, tool="type", provenance="parameter", param="amount", value=amount,
             target=named("textbox", "Amount: $"),
             checkpoint=[Condition(
                 kind="field_value_equals", target=named("textbox", "Amount: $"), value="{{amount}}",
@@ -113,12 +120,12 @@ def build_trace() -> list[TraceStep]:
             10, tool="click", target=named("button", "Transfer"),
             checkpoint=[
                 Condition(kind="element_visible", target=heading("Transfer Complete!")),
-                Condition(kind="element_visible", target=text_loc(SENTENCE)),
+                Condition(kind="element_visible", target=text_loc(sentence)),
             ],
         ),
         ts(
-            11, tool="extract", extract_name="confirmation_text", target=text_loc(SENTENCE), value=SENTENCE,
-            checkpoint=[Condition(kind="shape_matches", target=text_loc(SENTENCE), value="nonempty")],
+            11, tool="extract", extract_name="confirmation_text", target=text_loc(sentence), value=sentence,
+            checkpoint=[Condition(kind="shape_matches", target=text_loc(sentence), value="nonempty")],
         ),
         ts(12, tool="click", target=named("link", "Accounts Overview"), checkpoint=overview_ok),
         # --- non-consecutive duplicate extract: an unrelated extract sits between the two reads
@@ -143,8 +150,8 @@ def build_trace() -> list[TraceStep]:
     ]
 
 
-def compiled(stop_reason=StopReason.SUCCESS):
-    steps = build_trace()
+def compiled(stop_reason=StopReason.SUCCESS, amount: str = AMOUNT):
+    steps = build_trace(amount)
     result = DiscoveryResult(run_id="00000000-0000-0000-0000-000000000000", stop_reason=stop_reason, steps=steps)
     return compile_capability(result, spec())
 
@@ -181,7 +188,9 @@ def test_no_tagged_literal_survives_compilation():
     assert f'"{AMOUNT}"' not in dumped  # the bare typed amount never appears as a literal
     assert "{{from_account}}" in dumped
     assert "{{to_account}}" in dumped
-    assert "{{amount}}" in dumped
+    assert "{{amount:money}}" in dumped
+    assert "{{amount}}" not in dumped  # a money parameter is only ever written in its money form
+    assert ".00 has been" not in dumped  # and the app's own ".00" is never left behind as a suffix
 
 
 def _submit(cap):
@@ -196,20 +205,19 @@ def test_the_confirmation_sentence_is_parameterized_as_a_substring():
     assert TO not in sentence_cond.target.description
     assert "{{from_account}}" in sentence_cond.target.description
     assert "{{to_account}}" in sentence_cond.target.description
-    assert "{{amount}}" in sentence_cond.target.description
-    # exact: the ".00" ParaBank itself appends must survive the substitution untouched
+    assert "{{amount:money}}" in sentence_cond.target.description
+    # exact: the whole money token, ".00" included, is one placeholder — nothing hardcoded around it
     assert sentence_cond.target.description == (
-        'text "${{amount}}.00 has been transferred from account #{{from_account}} '
+        'text "${{amount:money}} has been transferred from account #{{from_account}} '
         'to account #{{to_account}}."'
     )
 
 
-def test_a_parameter_typed_in_two_different_literal_forms_does_not_swallow_page_formatting():
+def test_a_parameter_typed_in_two_different_literal_forms_still_yields_one_money_placeholder():
     # Regression: the real agent typed "11" on the Transfer page but "11.00" on the Find
     # Transactions page for the same amount (both correctly tagged, Decimal("11")==Decimal
-    # ("11.00")). Substituting the longer "11.00" variant against ParaBank's OWN "$11.00"
-    # elsewhere ate the ".00" along with it, breaking the compiled locator for every other
-    # amount at replay time. Only the shortest variant per parameter may be used.
+    # ("11.00")). Substituting a longer variant against the app's OWN "$11.00" used to eat the
+    # ".00" along with it. The page's money token is now tagged whole, whichever forms were typed.
     trace = build_trace()
     second_typing = ts(
         18, tool="type", provenance="parameter", param="amount", value=f"{AMOUNT}.00",
@@ -223,8 +231,8 @@ def test_a_parameter_typed_in_two_different_literal_forms_does_not_swallow_page_
     cap = compile_capability(result, spec())
     submit = _submit(cap)
     sentence_cond = next(c for c in submit.checkpoint if "has been transferred" in (c.target.description or ""))
-    assert ".00 has been transferred" in sentence_cond.target.description
-    assert AMOUNT not in sentence_cond.target.description.replace("{{amount}}", "")
+    assert "${{amount:money}} has been transferred" in sentence_cond.target.description
+    assert AMOUNT not in sentence_cond.target.description.replace("{{amount:money}}", "")
 
 
 def test_only_the_first_submission_click_is_marked_not_a_later_search_reusing_the_amount():
@@ -267,7 +275,7 @@ def test_submit_precondition_unions_the_fields_entered_since_the_last_navigation
     cap = compiled()
     submit = _submit(cap)
     kinds = {(c.kind, c.value) for c in submit.precondition}
-    assert ("field_value_equals", "{{amount}}") in kinds
+    assert ("field_value_equals", "{{amount:money}}") in kinds
     assert ("option_selected", "{{from_account}}") in kinds
     assert ("option_selected", "{{to_account}}") in kinds
 
@@ -397,3 +405,113 @@ def test_a_trace_with_no_new_balance_extract_is_left_untouched():
     out = _finalize_transaction_lookup(steps)
     assert out == steps
     assert all(not s.best_effort for s in out)
+
+
+# --- money: the amount is never hardcoded, whatever its shape ---------------------------------------
+
+@pytest.mark.parametrize("amount", ["11", "1.5", "1.50", "3.3", "1.44", "100", "0.05"])
+def test_any_discovery_amount_compiles_to_one_money_placeholder_and_no_literal(amount):
+    cap = compiled(amount=amount)
+    dumped = cap.model_dump_json()
+    sentence_cond = next(
+        c for c in _submit(cap).checkpoint if "has been transferred" in (c.target.description or "")
+    )
+    assert sentence_cond.target.description == (
+        'text "${{amount:money}} has been transferred from account #{{from_account}} '
+        'to account #{{to_account}}."'
+    )
+    assert "{{amount}}" not in dumped
+    # the root of the decimal bug: a placeholder with the app's own ".00" bolted on after it
+    assert not re.search(r"\{\{amount(:money)?\}\}\.00", dumped)
+    assert f"${canonical(Decimal(amount))} " not in dumped  # the printed amount is never a literal
+    assert FROM not in dumped and TO not in dumped
+
+
+def test_the_compiled_artifact_records_the_discovery_run_it_came_from():
+    steps = build_trace()
+    run_id = "5b9d178d-0a05-4884-bbf7-fd02cf79b2aa"
+    cap = compile_capability(DiscoveryResult(run_id=run_id, stop_reason=StopReason.SUCCESS, steps=steps), spec())
+    assert cap.created_from == run_id
+    assert cap.version == "2"  # 2 = money parameters are {{param:money}}
+
+
+# --- a dropped duplicate read must not replace the surviving step's real precondition ------------------
+
+
+def _with_consecutive_duplicate_balance_read():
+    """The real agent read the source balance twice in a row after logging in (same value, same
+    page). The compiler keeps only the last read."""
+    trace = build_trace()
+    first_read = next(s for s in trace if s.step_no == 4)
+    duplicate = first_read.model_copy(update={"step_no": 5})
+    trace = [s for s in trace if s.step_no <= 4] + [duplicate] + [
+        s.model_copy(update={"step_no": s.step_no + 1}) for s in trace if s.step_no > 4
+    ]
+    return DiscoveryResult(run_id="dup", stop_reason=StopReason.SUCCESS, steps=trace)
+
+
+def test_a_dropped_duplicate_read_does_not_replace_the_first_steps_login_precondition():
+    cap = compile_capability(_with_consecutive_duplicate_balance_read(), spec())
+    first = cap.steps[0]
+    assert first.extract_as == "policy_balance"
+    kinds = {c.kind for c in first.precondition}
+    # the state after login is what step 0 must start from...
+    assert {"url_matches", "element_visible"} <= kinds
+    # ...and it must NOT demand that the very cell it is about to read already exists: that check
+    # would fire before the wait, so a missing (invalid) account could never reach its error mapping
+    assert "shape_matches" not in kinds
+
+
+def test_the_precondition_is_the_same_whether_the_balance_was_read_once_or_twice():
+    once = compile_capability(DiscoveryResult(run_id="once", stop_reason=StopReason.SUCCESS, steps=build_trace()), spec())
+    twice = compile_capability(_with_consecutive_duplicate_balance_read(), spec())
+    assert [c.model_dump() for c in once.steps[0].precondition] == [c.model_dump() for c in twice.steps[0].precondition]
+    assert len(once.steps) == len(twice.steps)
+
+
+# --- the login state seeds step 0 with page structure, never a customer's own content ------------------
+
+
+def _login_leaves_a_personal_greeting():
+    trace = build_trace()
+    login_click = next(s for s in trace if s.step_no == 3)
+    greeting = Condition(kind="element_visible", target=Locator(
+        description='paragraph "Welcome Some Person"',
+        chain=[LocatorCandidate(strategy="text", value="Welcome Some Person")],
+    ))
+    patched = login_click.model_copy(update={"checkpoint": login_click.checkpoint + [greeting]})
+    return DiscoveryResult(
+        run_id="greet", stop_reason=StopReason.SUCCESS,
+        steps=[patched if s.step_no == 3 else s for s in trace],
+    )
+
+
+def test_a_customers_greeting_never_becomes_part_of_the_first_steps_precondition():
+    cap = compile_capability(_login_leaves_a_personal_greeting(), spec())
+    dumped = cap.model_dump_json()
+    assert "Welcome" not in dumped and "Some Person" not in dumped
+    kinds = [c.kind for c in cap.steps[0].precondition]
+    assert "url_matches" in kinds and kinds.count("element_visible") >= 1  # the page is still identified
+
+
+def test_the_greeting_rule_does_not_change_an_artifact_that_had_no_greeting():
+    plain = compile_capability(DiscoveryResult(run_id="p", stop_reason=StopReason.SUCCESS, steps=build_trace()), spec())
+    greeted = compile_capability(_login_leaves_a_personal_greeting(), spec())
+    assert plain.model_dump() | {"created_from": None} == greeted.model_dump() | {"created_from": None}
+
+
+def test_a_paragraph_checked_after_the_transfer_is_still_checked():
+    # Only login's end state is filtered. The real confirmation sentence is a paragraph too, and it
+    # must remain a checkpoint of the step that moves the money.
+    trace = build_trace()
+    submit_click = next(s for s in trace if s.step_no == 10)
+    as_paragraph = [
+        c.model_copy(update={"target": Locator(
+            description=c.target.description.replace("text ", "paragraph ", 1), chain=c.target.chain,
+        )}) if "has been transferred" in (c.target.description or "") else c
+        for c in submit_click.checkpoint
+    ]
+    patched = [s.model_copy(update={"checkpoint": as_paragraph}) if s.step_no == 10 else s for s in trace]
+    cap = compile_capability(DiscoveryResult(run_id="para", stop_reason=StopReason.SUCCESS, steps=patched), spec())
+    kept = [c for c in _submit(cap).checkpoint if "has been transferred" in (c.target.description or "")]
+    assert len(kept) == 1 and kept[0].target.description.startswith("paragraph ")

@@ -1,9 +1,0 @@
-{"ts": "2026-09-22T22:06:31.050805+00:00", "run_id": "2811f8c9-fc5e-48a1-9c01-c173375e3769", "event": "act", "data": {"kind": "type", "description": "textbox \"Username\""}}
-{"ts": "2026-09-22T22:06:32.416482+00:00", "run_id": "2811f8c9-fc5e-48a1-9c01-c173375e3769", "event": "act", "data": {"kind": "type", "description": "textbox \"Password\""}}
-{"ts": "2026-09-22T22:06:32.451928+00:00", "run_id": "2811f8c9-fc5e-48a1-9c01-c173375e3769", "event": "act", "data": {"kind": "click", "description": "button \"Log In\""}}
-{"ts": "2026-09-22T22:06:36.353395+00:00", "run_id": "2811f8c9-fc5e-48a1-9c01-c173375e3769", "event": "act", "data": {"kind": "extract", "description": "cell[row \"[REDACTED]\", \"Balance*\"]"}}
-{"ts": "2026-09-22T22:06:39.204232+00:00", "run_id": "2811f8c9-fc5e-48a1-9c01-c173375e3769", "event": "act", "data": {"kind": "click", "description": "link \"Transfer Funds\""}}
-{"ts": "2026-09-22T22:06:44.417480+00:00", "run_id": "2811f8c9-fc5e-48a1-9c01-c173375e3769", "event": "act", "data": {"kind": "type", "description": "textbox \"Amount: $\""}}
-{"ts": "2026-09-22T22:06:48.144845+00:00", "run_id": "2811f8c9-fc5e-48a1-9c01-c173375e3769", "event": "act", "data": {"kind": "select", "description": "combobox \"From account #\""}}
-{"ts": "2026-09-22T22:06:51.730186+00:00", "run_id": "2811f8c9-fc5e-48a1-9c01-c173375e3769", "event": "act", "data": {"kind": "select", "description": "combobox \"to account #\""}}
-{"ts": "2026-09-22T22:07:17.057086+00:00", "run_id": "2811f8c9-fc5e-48a1-9c01-c173375e3769", "event": "locator_miss", "data": {"description": "heading \"Transfer Complete!\"", "rank": 0, "strategy": "role_name", "matches": 0}}

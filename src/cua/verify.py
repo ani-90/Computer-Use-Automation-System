@@ -9,14 +9,22 @@ Observation shape Discovery itself relies on.
 
 import re
 from collections.abc import Mapping
+from decimal import InvalidOperation
 from urllib.parse import urlparse
 
 from cua.adapter import Observation
 from cua.models import SHAPES, Condition, Locator, LocatorCandidate
+from cua.money import parse_money, render_text
 
 
 def render(text: str, params: Mapping[str, str]) -> str:
+    """Fill {{param}} with the parameter's value and {{param:money}} with its canonical money form
+    (exactly 2 decimals: 1.5 -> "1.50"). A money placeholder whose value is not a usable amount is
+    left as written, so it simply fails to match — a bad value is never guessed at."""
     for name, value in params.items():
+        money = render_text(value)
+        if money is not None:
+            text = text.replace("{{" + name + ":money}}", money)
         text = text.replace("{{" + name + "}}", value)
     return text
 
@@ -62,6 +70,15 @@ def _candidate(obs: Observation, target: Locator):
     return next((c for c in obs.candidates if c.locator == target), None)
 
 
+def _same_money(shown: str | None, expected: str | None) -> bool:
+    """Decimal equality between what a field holds and what was expected ("1.5" == "1.50" == "$1.50").
+    Anything that is not a money value on either side is simply not equal."""
+    try:
+        return parse_money(shown or "") == parse_money(expected or "")
+    except InvalidOperation:
+        return False
+
+
 def evaluate(cond: Condition, adapter, obs: Observation, params: Mapping[str, str]) -> bool:
     """True when `cond` (a precondition or checkpoint condition from a compiled Step) holds
     against `obs`, the most recent observation. Shape checks on an extract's own value are
@@ -78,7 +95,11 @@ def evaluate(cond: Condition, adapter, obs: Observation, params: Mapping[str, st
     if c.kind == "field_filled":
         return cand is not None and (cand.filled or cand.selected is not None)
     if c.kind == "field_value_equals":
-        return cand is not None and cand.value == c.value
+        if cand is None:
+            return False
+        if cond.value and ":money}}" in cond.value:  # a money parameter: compare the values, not the spelling
+            return _same_money(cand.value, c.value)
+        return cand.value == c.value
     if c.kind == "option_selected":
         return cand is not None and cand.selected == c.value
     if c.kind == "option_present":

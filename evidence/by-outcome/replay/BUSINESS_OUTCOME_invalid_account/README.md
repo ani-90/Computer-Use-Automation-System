@@ -1,20 +1,16 @@
-# Replay outcome: BUSINESS_OUTCOME (invalid_account)
+# Replay outcome: BUSINESS_OUTCOME_invalid_account
 
-Source run: `evidence/replay/491be9bf-2b0b-4a4b-8f05-7318d0e4136f` (copied here in full).
+Source run: `11f9e42e-216b-428e-90b9-8b5fbc51856b` (this folder is a full copy of that run's evidence; the raw run folder itself is not committed).
 
-ParaBank's transfer dropdowns only ever list real accounts, so a nonexistent `to_account` can't
-be submitted through the UI at all — it simply never appears as an option. The compiler emits an
-`error_mapping` on the destination-account select step: when its `option_present` wait times out
-looking for exactly that account number, the engine recognizes it as a known, mapped answer
-(`business_outcome: "invalid_account"`) rather than a generic, unexplained `HARD_FAILURE`.
+A source account that does not exist. Step 0 waits for that account's balance row, times out, and the artifact's own `error_mapping` turns it into the known answer `business_outcome: invalid_account`, not a crash. No transfer is attempted. (An earlier artifact returned `HARD_FAILURE` here: the compiler carried a dropped duplicate read's check into step 0's precondition, which pre-empted this mapping. Fixed in the compiler.)
 
-`result.json`: `status: "BUSINESS_OUTCOME"`, `business_outcome: "invalid_account"`.
+Command shape: `replay ... --param from_account=<nonexistent> ...`
 
-This run also proves a real CLI bug fix: the terminal now actually prints
-`business_outcome: invalid_account` under the status line — earlier it printed only the bare
-status, telling an operator nothing about *why*.
+Result:
+- `status: BUSINESS_OUTCOME`
+- `business_outcome: invalid_account`
+- `llm_calls: 0`
 
-Files: `trace.json`, `log.jsonl`, `result.json`, `prelude-*.png`, `step-*.png` (the form sits
-fully filled in — both account dropdowns masked — with the destination account never resolvable).
+Files: `log.jsonl`, `prelude-*.png`, `result.json`, `step-*.png`, `trace.json`.
 
-Credentials and account numbers grepped clean; every screenshot reviewed before inclusion.
+Credentials and account numbers grepped clean; the saved files hold no real account number (the CLI's operator block, which does, is terminal-only); screenshots reviewed before inclusion.
