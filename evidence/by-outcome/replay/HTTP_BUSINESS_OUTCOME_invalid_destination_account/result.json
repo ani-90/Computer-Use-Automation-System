@@ -1,0 +1,19 @@
+{
+  "run_id": "764f8607-483d-419c-bbd2-8963fd858b79",
+  "status": "BUSINESS_OUTCOME",
+  "outputs": null,
+  "business_outcome": "invalid_account",
+  "failure_detail": {
+    "step_index": 3,
+    "expected": "option_present combobox \"to account #\" = {{to_account}}",
+    "observed": "known condition, mapped to invalid_account"
+  },
+  "escalations": [],
+  "side_effects": "none",
+  "capability": {
+    "name": "transfer_funds",
+    "version": "2",
+    "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+  },
+  "llm_calls": 0
+}

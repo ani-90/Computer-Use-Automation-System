@@ -1,5 +1,10 @@
 {
-  "run_id": "a521997f-6351-4af6-84ae-5e03e944378d",
+  "run_id": "1d96b3bd-03e0-428d-9ae6-df9765abbc8f",
+  "capability": {
+    "name": "transfer_funds",
+    "version": "2",
+    "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+  },
   "steps": [
     {
       "step_no": 0,
@@ -9,7 +14,7 @@
       "value": null,
       "gate": {
         "verdict": "allow",
-        "reason": "no amount involved"
+        "reason": "path allowed; the amount rules apply at the submission step"
       },
       "precondition_status": "n/a",
       "wait_status": "n/a",
@@ -27,7 +32,7 @@
       "value": null,
       "gate": {
         "verdict": "allow",
-        "reason": "no amount involved"
+        "reason": "path allowed; the amount rules apply at the submission step"
       },
       "precondition_status": "n/a",
       "wait_status": "n/a",
@@ -60,7 +65,7 @@
       "value": null,
       "gate": {
         "verdict": "allow",
-        "reason": "no amount involved"
+        "reason": "path allowed; the amount rules apply at the submission step"
       },
       "precondition_status": "ok",
       "wait_status": "timed_out",

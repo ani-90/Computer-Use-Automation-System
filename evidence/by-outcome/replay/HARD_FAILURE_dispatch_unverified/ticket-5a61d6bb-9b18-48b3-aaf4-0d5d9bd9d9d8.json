@@ -1,0 +1,21 @@
+{
+  "ticket_id": "5a61d6bb-9b18-48b3-aaf4-0d5d9bd9d9d8",
+  "run_id": "ac1957a4-8d5c-48b0-95d8-12b59febc44e",
+  "step_index": 5,
+  "reason": "money-moving step dispatched but its confirmation was never verified",
+  "status": "open",
+  "decision": null,
+  "captured_human_actions": [],
+  "note": null,
+  "procedure": "A money-moving step was clicked but its confirmation was never seen. The action may or may not have posted. Do not retry until it is verified.\nInputs: from_account=[REDACTED], to_account=[REDACTED], amount=5.\nBalance before the step: 481.46.\nTo verify, look up the transaction in the app:\n1. click link \"Find Transactions\"\n2. type textbox \"Find by Amount:\" (value=5.00)\n3. select combobox \"Select an account:\" (value=[REDACTED])\n4. click button \"Find Transactions\" #3\n5. click link \"Funds Transfer Sent\"\n6. extract cell[row \"Transaction ID:\", col 1]",
+  "opened_at": "2026-09-26T11:13:54+00:00",
+  "resolved_at": null,
+  "capability": {
+    "name": "transfer_funds",
+    "version": "2",
+    "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+  },
+  "step_description": "button \"Transfer\"",
+  "screenshot": "step-05.png",
+  "operator": null
+}

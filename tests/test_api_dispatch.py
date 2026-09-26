@@ -71,6 +71,8 @@ def test_an_unverified_dispatch_over_http_is_flagged_with_correlation_ids_and_no
     assert body["status"] == "HARD_FAILURE"
     assert body["business_outcome"] == "dispatch_unverified"
     assert "verify before any retry" in body["failure_detail"]["observed"]
+    assert body["side_effects"] == "unverified"  # the caller is told not to retry blindly
+    assert body["capability"]["version"] == "2"
     assert bank.transfer_clicks == 1  # the engine never re-clicked
 
     (ticket,) = body["escalations"]
@@ -107,6 +109,7 @@ def test_the_same_account_twice_over_http_is_a_policy_block_like_the_cli(http_en
     assert body["status"] == "POLICY_BLOCK"
     assert body["escalations"] == []
     assert bank.page == "login"  # the browser was never touched
+    assert body["side_effects"] == "none"  # nothing was dispatched: safe to retry
 
 
 def _spy_on_replay(monkeypatch):
@@ -166,6 +169,7 @@ def test_a_normal_transfer_over_http_is_a_plain_success(http_env):
 
     assert body["status"] == "SUCCESS"
     assert body["business_outcome"] is None
+    assert body["side_effects"] == "committed"
     assert body["escalations"] == []
     assert body["outputs"]["new_balance"]
 

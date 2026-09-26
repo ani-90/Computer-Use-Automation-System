@@ -1,5 +1,5 @@
 {
-  "instruction": "transfer 5 dollars from account [REDACTED] to account [REDACTED]",
+  "instruction": "Call the transfer_funds tool now with from_account=[REDACTED], to_account=[REDACTED], amount=1.[REDACTED]. Do not ask me any questions and do not change the arguments.",
   "catalog": [
     {
       "name": "transfer_funds",
@@ -27,14 +27,14 @@
   ],
   "first_response": [
     {
-      "id": "toolu_01Wb9o8LVBK8EyKpFnrpkMdN",
+      "id": "toolu_013QcMxgvFwe6eGLosjcfQLW",
       "caller": {
         "type": "direct"
       },
       "input": {
         "from_account": "[REDACTED]",
         "to_account": "[REDACTED]",
-        "amount": "5"
+        "amount": "1.[REDACTED]"
       },
       "name": "transfer_funds",
       "type": "tool_use"
@@ -43,24 +43,30 @@
   "invoke_request": {
     "from_account": "[REDACTED]",
     "to_account": "[REDACTED]",
-    "amount": "5"
+    "amount": "1.[REDACTED]"
   },
   "invoke_response": {
-    "run_id": "0fff2030-5f4f-4038-b806-654d96b9f49b",
-    "status": "SUCCESS",
-    "outputs": {
-      "confirmation_text": "$5.00 has been transferred from account #[REDACTED] to account #[REDACTED].",
-      "new_balance": "$183.21",
-      "transaction_id": "[REDACTED]"
-    },
+    "run_id": "12491b6f-058f-48d1-94fc-dbaf4bd421b5",
+    "status": "POLICY_BLOCK",
+    "outputs": null,
     "business_outcome": null,
-    "failure_detail": null,
+    "failure_detail": {
+      "step_index": -1,
+      "expected": "policy allow",
+      "observed": "amount supports at most 2 decimal places (USD)"
+    },
     "escalations": [],
+    "side_effects": "none",
+    "capability": {
+      "name": "transfer_funds",
+      "version": "2",
+      "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+    },
     "llm_calls": 0
   },
   "final_response": [
     {
-      "text": "Perfect! The transfer has been completed successfully. $5.00 has been transferred from account [REDACTED] to account [REDACTED]. The new balance in the source account is $183.21.",
+      "text": "The transfer_funds call has been executed. The transfer was blocked due to a policy restriction: the amount field only supports up to 2 decimal places for USD currency, but the value 1.[REDACTED] has 5 decimal places.",
       "type": "text"
     }
   ]

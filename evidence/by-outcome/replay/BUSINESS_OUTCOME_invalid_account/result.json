@@ -1,9 +1,19 @@
 {
-  "run_id": "11f9e42e-216b-428e-90b9-8b5fbc51856b",
+  "run_id": "54a10fe6-3831-4af1-bf1e-82a4b673f083",
   "status": "BUSINESS_OUTCOME",
   "outputs": null,
   "business_outcome": "invalid_account",
-  "failure_detail": null,
+  "failure_detail": {
+    "step_index": 0,
+    "expected": "element_visible cell[row \"{{from_account}}\", \"Balance*\"]",
+    "observed": "known condition, mapped to invalid_account"
+  },
   "escalations": [],
+  "side_effects": "none",
+  "capability": {
+    "name": "transfer_funds",
+    "version": "2",
+    "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+  },
   "llm_calls": 0
 }

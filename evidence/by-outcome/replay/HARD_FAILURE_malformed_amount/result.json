@@ -1,5 +1,5 @@
 {
-  "run_id": "2ce41c9c-99ae-479c-b1f9-926005d9546b",
+  "run_id": "93e19b86-f9ee-4e87-8b22-cdf9e0b9921a",
   "status": "HARD_FAILURE",
   "outputs": null,
   "business_outcome": null,
@@ -9,5 +9,11 @@
     "observed": "amount is not a valid decimal"
   },
   "escalations": [],
+  "side_effects": "none",
+  "capability": {
+    "name": "transfer_funds",
+    "version": "2",
+    "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+  },
   "llm_calls": 0
 }

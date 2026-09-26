@@ -1,5 +1,5 @@
 {
-  "run_id": "a5866aa9-72a1-4730-9ed9-51d0fd67ce54",
+  "run_id": "66a64559-4952-4eed-a072-71af7c9525e2",
   "status": "POLICY_BLOCK",
   "outputs": null,
   "business_outcome": null,
@@ -9,5 +9,11 @@
     "observed": "from_account and to_account must be different"
   },
   "escalations": [],
+  "side_effects": "none",
+  "capability": {
+    "name": "transfer_funds",
+    "version": "2",
+    "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+  },
   "llm_calls": 0
 }

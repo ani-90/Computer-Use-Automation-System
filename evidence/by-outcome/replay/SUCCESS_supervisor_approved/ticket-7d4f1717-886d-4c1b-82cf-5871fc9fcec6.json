@@ -1,0 +1,27 @@
+{
+  "ticket_id": "7d4f1717-886d-4c1b-82cf-5871fc9fcec6",
+  "run_id": "8d7b134d-737f-405f-9130-99a6abf25fc6",
+  "step_index": 5,
+  "reason": "amount exceeds approval threshold",
+  "status": "resolved",
+  "decision": "approve",
+  "captured_human_actions": [
+    {
+      "tag": "INPUT",
+      "text": "Transfer",
+      "url": "http://localhost:8080/parabank/transfer.htm"
+    }
+  ],
+  "note": null,
+  "procedure": null,
+  "opened_at": "2026-09-26T11:22:06+00:00",
+  "resolved_at": "2026-09-26T11:22:20+00:00",
+  "capability": {
+    "name": "transfer_funds",
+    "version": "2",
+    "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+  },
+  "step_description": "button \"Transfer\"",
+  "screenshot": "step-05.png",
+  "operator": "demo-operator"
+}

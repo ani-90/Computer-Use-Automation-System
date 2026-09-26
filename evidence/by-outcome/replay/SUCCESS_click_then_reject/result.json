@@ -1,17 +1,17 @@
 {
-  "run_id": "0f7dedad-416f-4208-a243-6f07450517ba",
+  "run_id": "351b3a12-59bd-45fd-8e24-86c220148334",
   "status": "SUCCESS",
   "outputs": {
     "confirmation_text": "$101.00 has been transferred from account #[REDACTED] to account #[REDACTED].",
-    "new_balance": "$188.21",
+    "new_balance": "$267.96",
     "transaction_id": "[REDACTED]"
   },
   "business_outcome": null,
   "failure_detail": null,
   "escalations": [
     {
-      "ticket_id": "03e93ce8-f00e-4058-851f-7d63b3162631",
-      "run_id": "0f7dedad-416f-4208-a243-6f07450517ba",
+      "ticket_id": "18b6b1ef-ee2c-44ab-9f5f-667f7ca9836c",
+      "run_id": "351b3a12-59bd-45fd-8e24-86c220148334",
       "step_index": 5,
       "reason": "amount exceeds approval threshold",
       "status": "resolved",
@@ -24,8 +24,24 @@
         }
       ],
       "note": "submission click captured before the signal; transfer verified executed; the reject signal arrived post-dispatch and could not be applied",
-      "procedure": null
+      "procedure": null,
+      "opened_at": "2026-09-26T11:24:02+00:00",
+      "resolved_at": "2026-09-26T11:24:22+00:00",
+      "capability": {
+        "name": "transfer_funds",
+        "version": "2",
+        "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+      },
+      "step_description": "button \"Transfer\"",
+      "screenshot": "step-05.png",
+      "operator": "demo-operator"
     }
   ],
+  "side_effects": "committed",
+  "capability": {
+    "name": "transfer_funds",
+    "version": "2",
+    "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+  },
   "llm_calls": 0
 }

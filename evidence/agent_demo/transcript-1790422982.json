@@ -1,0 +1,73 @@
+{
+  "instruction": "transfer 150 dollars from account [REDACTED] to account [REDACTED]",
+  "catalog": [
+    {
+      "name": "transfer_funds",
+      "description": "Run the 'transfer_funds' capability against the live app.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "from_account": {
+            "type": "string"
+          },
+          "to_account": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_account",
+          "to_account",
+          "amount"
+        ]
+      }
+    }
+  ],
+  "first_response": [
+    {
+      "id": "toolu_01WgHKg3Xt1tiDmMQKEdgvsG",
+      "caller": {
+        "type": "direct"
+      },
+      "input": {
+        "from_account": "[REDACTED]",
+        "to_account": "[REDACTED]",
+        "amount": "150"
+      },
+      "name": "transfer_funds",
+      "type": "tool_use"
+    }
+  ],
+  "invoke_request": {
+    "from_account": "[REDACTED]",
+    "to_account": "[REDACTED]",
+    "amount": "150"
+  },
+  "invoke_response": {
+    "run_id": "a5b7da2a-d053-4267-af36-bf36c614cadd",
+    "status": "POLICY_BLOCK",
+    "outputs": null,
+    "business_outcome": null,
+    "failure_detail": {
+      "step_index": 5,
+      "expected": "policy allow",
+      "observed": "amount exceeds approval threshold"
+    },
+    "escalations": [],
+    "side_effects": "none",
+    "capability": {
+      "name": "transfer_funds",
+      "version": "2",
+      "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+    },
+    "llm_calls": 0
+  },
+  "final_response": [
+    {
+      "text": "The transfer has been blocked due to a policy restriction. The system indicates that the amount of $150 exceeds the approval threshold for this transfer. This means the transfer cannot be completed as requested because it violates the security or approval policies set for these accounts.\n\nYou may need to:\n- Contact your bank or administrator to increase the approval threshold\n- Request manual approval for this transaction\n- Transfer a smaller amount that falls within the approval limit\n\nWould you like to try transferring a different amount, or do you need assistance with something else?",
+      "type": "text"
+    }
+  ]
+}

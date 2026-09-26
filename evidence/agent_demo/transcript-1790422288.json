@@ -27,7 +27,7 @@
   ],
   "first_response": [
     {
-      "id": "toolu_01NSC6JxgpWYvvtcsNR29JMe",
+      "id": "toolu_0136eQzbb6ak7ffBdJYyb74z",
       "caller": {
         "type": "direct"
       },
@@ -46,7 +46,7 @@
     "amount": "5"
   },
   "invoke_response": {
-    "run_id": "8afb33dc-a928-4807-af2f-3e7ed9dd5037",
+    "run_id": "42e3f71c-5aa6-480c-a42d-4b6ddbf70f76",
     "status": "HARD_FAILURE",
     "outputs": null,
     "business_outcome": "dispatch_unverified",
@@ -57,21 +57,37 @@
     },
     "escalations": [
       {
-        "ticket_id": "ead1d70a-be26-4df8-835d-cd8c40cba55a",
-        "run_id": "8afb33dc-a928-4807-af2f-3e7ed9dd5037",
+        "ticket_id": "29b6ed42-3896-493d-bf2c-89978768f324",
+        "run_id": "42e3f71c-5aa6-480c-a42d-4b6ddbf70f76",
         "step_index": 5,
         "reason": "money-moving step dispatched but its confirmation was never verified",
         "status": "open",
         "decision": null,
         "captured_human_actions": [],
-        "note": null
+        "note": null,
+        "opened_at": "2026-09-26T11:31:24+00:00",
+        "resolved_at": null,
+        "capability": {
+          "name": "transfer_funds",
+          "version": "2",
+          "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+        },
+        "step_description": "button \"Transfer\"",
+        "screenshot": "step-05.png",
+        "operator": null
       }
     ],
+    "side_effects": "unverified",
+    "capability": {
+      "name": "transfer_funds",
+      "version": "2",
+      "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+    },
     "llm_calls": 0
   },
   "final_response": [
     {
-      "text": "I attempted to transfer $5 from account [REDACTED] to account [REDACTED], but the transaction encountered a verification issue. The system indicates that the transfer may or may not have been completed.\n\n**What happened:**\n- The transfer was dispatched, but the system couldn't verify its confirmation\n- An escalation ticket (ID: ead1d70a-be26-4df8-835d-cd8c40cba55a) has been opened for investigation\n\n**Recommendation:**\nPlease verify the account balances directly to confirm whether the $5 transfer actually posted to both accounts before attempting any retry. This will help ensure the funds weren't transferred twice.",
+      "text": "The transfer request has encountered an issue. The system attempted to transfer $5 from account [REDACTED] to account [REDACTED], but the confirmation step could not be verified. \n\n**Status:** HARD_FAILURE - The transfer may or may not have been processed, and the system cannot confirm completion.\n\n**What happened:** The transfer button was clicked, but the system was unable to verify that the transfer actually posted successfully. An escalation ticket (ID: 29b6ed42-3896-493d-bf2c-89978768f324) has been opened for manual verification.\n\n**Recommendation:** Before attempting any retry, you should manually verify whether the $5 transfer actually went through by checking both accounts. Once verified, you can determine if a retry is necessary.",
       "type": "text"
     }
   ]

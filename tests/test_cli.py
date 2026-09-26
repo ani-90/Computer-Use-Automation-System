@@ -146,6 +146,32 @@ def test_an_open_ticket_shows_the_operator_the_real_procedure_but_the_summary_st
     assert "12345" not in summary_part and "67890" not in summary_part  # the summary is still redacted
 
 
+def test_replay_prints_the_side_effect_state_so_an_operator_knows_whether_to_retry(monkeypatch, capsys):
+    set_env(monkeypatch)
+    monkeypatch.setattr("cua.adapter.PlaywrightAdapter.start", lambda _self: None)
+    monkeypatch.setattr("cua.adapter.PlaywrightAdapter.close", lambda _self: None)
+
+    class FakeResult:
+        run_id = "x"
+        escalations = ()
+        status = Outcome.HARD_FAILURE
+        llm_calls = 0
+        failure_detail = None
+        outputs = None
+
+        def model_dump(self, mode="json"):
+            return {
+                "run_id": self.run_id, "status": self.status.value, "llm_calls": 0, "failure_detail": None,
+                "business_outcome": None, "outputs": None, "escalations": [], "side_effects": "committed",
+            }
+
+    monkeypatch.setattr("cua.replay.ReplayEngine.replay", lambda self, *a, **k: FakeResult())
+    main(["replay", "--goal", SPEC_PATH, "--capability", CAP_PATH, *PARAMS])
+    out = capsys.readouterr().out
+    assert "side_effects: committed" in out
+    assert out.index("status:") < out.index("side_effects:") < out.index("llm_calls:")
+
+
 def test_replay_prints_business_outcome_when_present(monkeypatch, capsys):
     # Regression: status alone ("BUSINESS_OUTCOME") tells an operator nothing about *why* — a
     # live invalid_account run showed only that, with the classification itself never printed.

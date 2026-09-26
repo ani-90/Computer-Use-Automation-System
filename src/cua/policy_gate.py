@@ -37,7 +37,7 @@ class PolicyGate:
             return Decision(verdict=Verdict.BLOCK, reason=f"path not allowlisted: {path}")
 
         if amount is None:
-            return Decision(verdict=Verdict.ALLOW, reason="no amount involved")
+            return Decision(verdict=Verdict.ALLOW, reason="path allowed; the amount rules apply at the submission step")
         if amount <= 0:
             return Decision(verdict=Verdict.BLOCK, reason="amount must be greater than zero")
         if balance is None:

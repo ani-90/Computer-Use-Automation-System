@@ -1,5 +1,5 @@
 {
-  "run_id": "2f0a30ac-0f76-4327-bbbf-c03475b34c8f",
+  "run_id": "a5b7da2a-d053-4267-af36-bf36c614cadd",
   "status": "POLICY_BLOCK",
   "outputs": null,
   "business_outcome": null,
@@ -9,5 +9,11 @@
     "observed": "amount exceeds approval threshold"
   },
   "escalations": [],
+  "side_effects": "none",
+  "capability": {
+    "name": "transfer_funds",
+    "version": "2",
+    "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+  },
   "llm_calls": 0
 }

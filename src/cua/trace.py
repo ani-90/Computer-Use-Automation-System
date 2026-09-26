@@ -51,7 +51,7 @@ class ReplayTraceStep(_Model):
 
     step_no: int  # -1 for the login prelude's own steps
     phase: Literal["prelude", "step"]
-    action: Literal["click", "type", "select", "navigate", "extract"]
+    action: Literal["click", "type", "select", "navigate", "extract", "fault"]
     target: str  # the rendered locator description (redacted at write time like everything else)
     value: str | None = None  # an extract's own value; never a secret (prelude never logs one)
     gate: GateRecord | None = None
@@ -64,7 +64,7 @@ class ReplayTraceStep(_Model):
     # "abandoned": a best-effort trailing lookup (transaction_id) failed and the run is finishing
     # as SUCCESS anyway, with that output left unset — the step's own "error" record above this
     # one already shows what actually failed; this just marks that it was allowed to fail.
-    result: Literal["ok", "blocked", "error", "recovered", "abandoned"]
+    result: Literal["ok", "blocked", "error", "recovered", "abandoned", "injected"]
     error: str | None = None
     url_after: str | None = None
     screenshot: str | None = None

@@ -1,5 +1,5 @@
 {
-  "run_id": "12f22cc1-8ed3-4be3-a1f6-a9fc7a605247",
+  "run_id": "a56521cc-b094-4725-bab8-2fd4af0501a9",
   "status": "POLICY_BLOCK",
   "outputs": null,
   "business_outcome": null,
@@ -10,16 +10,32 @@
   },
   "escalations": [
     {
-      "ticket_id": "dc77382d-23c1-4bca-b825-ac09972bf21f",
-      "run_id": "12f22cc1-8ed3-4be3-a1f6-a9fc7a605247",
+      "ticket_id": "35263125-7787-4c51-a32d-c305b413fdcd",
+      "run_id": "a56521cc-b094-4725-bab8-2fd4af0501a9",
       "step_index": 5,
       "reason": "amount exceeds approval threshold",
       "status": "resolved",
       "decision": "reject",
       "captured_human_actions": [],
       "note": null,
-      "procedure": null
+      "procedure": null,
+      "opened_at": "2026-09-26T11:06:59+00:00",
+      "resolved_at": "2026-09-26T11:07:12+00:00",
+      "capability": {
+        "name": "transfer_funds",
+        "version": "2",
+        "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+      },
+      "step_description": "button \"Transfer\"",
+      "screenshot": "step-05.png",
+      "operator": "demo-operator"
     }
   ],
+  "side_effects": "none",
+  "capability": {
+    "name": "transfer_funds",
+    "version": "2",
+    "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+  },
   "llm_calls": 0
 }

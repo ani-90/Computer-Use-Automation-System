@@ -53,6 +53,7 @@ from cua.enums import Outcome, SessionOwner, Verdict
 from cua.evidence import EvidenceLogger, new_run_id
 from cua.models import (
     Capability,
+    CapabilityRef,
     Condition,
     Escalation,
     FailureDetail,
@@ -62,6 +63,7 @@ from cua.models import (
     Outputs,
     ParamSpec,
     ReplayResult,
+    SideEffects,
     Step,
     WaitStrategy,
 )
@@ -122,10 +124,14 @@ class ReplayEngine:
     adapter: Any  # PlaywrightAdapter's four methods; never imports playwright itself
     gate: PolicyGate
     logger: EvidenceLogger | None = None  # None only in tests against a fake adapter
+    operator: str | None = None  # who acts on an escalation, when someone is named; None = unattributed
     _steps: list[ReplayTraceStep] = field(default_factory=list, init=False, repr=False)
     _escalations: list[Escalation] = field(default_factory=list, init=False, repr=False)
     session_owner: SessionOwner = field(default=SessionOwner.AGENT, init=False)
     _recovered_once: bool = field(default=False, init=False, repr=False)
+    _side_effects: SideEffects = field(default="none", init=False, repr=False)
+    _capability_ref: CapabilityRef | None = field(default=None, init=False, repr=False)
+    _shots: dict[str, int] = field(default_factory=dict, init=False, repr=False)
 
     def replay(
         self, capability: Capability, params: Mapping[str, str], secrets: Mapping[str, str], start_url: str,
@@ -139,6 +145,11 @@ class ReplayEngine:
         self._steps = []
         self._escalations = []
         self._recovered_once = False
+        self._side_effects = "none"
+        self._shots = {}
+        self._capability_ref = CapabilityRef(
+            name=capability.name, version=capability.version, created_from=capability.created_from
+        )
         self.session_owner = SessionOwner.AGENT
         problems = _validate_params(capability.inputs, params)
         if problems:
@@ -239,6 +250,7 @@ class ReplayEngine:
                         break
                     return self._finish(run_id, terminal)
                 human_did_it = True  # approved, a click was genuinely captured
+                self._side_effects = "unverified"  # the supervisor's click dispatched it; the page must still confirm
 
             # select/type/extract: the wait describes readiness BEFORE acting (e.g. an
             # AJAX-populated dropdown's option existing before it can be selected — the exact
@@ -333,6 +345,8 @@ class ReplayEngine:
                         break
                     return self._finish(run_id, terminal)
 
+            if step.is_submission:
+                self._side_effects = "committed"  # dispatched AND confirmed: nothing after this may be "retried away"
             self._record(i, "step", step, params, gate_record, precondition_status, wait_status,
                          checkpoint_status, "ok", None, after.url, after, extracted)
 
@@ -348,7 +362,11 @@ class ReplayEngine:
             transaction_id=collected.get("transaction_id"),
         )
         return self._finish(
-            run_id, ReplayResult(run_id=run_id, status=Outcome.SUCCESS, outputs=outputs, escalations=self._escalations)
+            run_id,
+            ReplayResult(
+                run_id=run_id, status=Outcome.SUCCESS, outputs=outputs, escalations=self._escalations,
+                side_effects=self._side_effects, capability=self._capability_ref,
+            ),
         )
 
     # -- escalation (Phase 7, primary trigger only) ---------------------
@@ -358,7 +376,10 @@ class ReplayEngine:
     ) -> ReplayResult | None:
         """None means: approved, a click was genuinely captured — the caller proceeds to verify
         the checkpoint exactly like a normal step. Otherwise, the terminal result to return."""
-        ticket = escalation.open_ticket(self.logger, run_id, i, decision.reason)
+        ticket = escalation.open_ticket(
+            self.logger, run_id, i, decision.reason, capability=self._capability_ref,
+            step_description=step.target.description, screenshot=self._shot_name(f"step-{i:02d}.png", consume=False),
+        )
         self.session_owner = SessionOwner.HUMAN
         self.adapter.set_session_owner("human")
         word = on_escalate(ticket)
@@ -367,7 +388,8 @@ class ReplayEngine:
         self.session_owner = SessionOwner.AGENT
 
         if word == "approve" and captured:
-            self._escalations.append(escalation.resolve_ticket(self.logger, ticket, "approve", captured))
+            self._escalations.append(
+                escalation.resolve_ticket(self.logger, ticket, "approve", captured, operator=self.operator))
             return None
 
         # A typed "reject", or a timeout with nobody there to respond, is not by itself proof
@@ -376,6 +398,7 @@ class ReplayEngine:
         # actually captured against it, the same safety check either way.
         matched_submit = word in ("reject", "timeout") and _matches_target(step.target, captured)
         if matched_submit:
+            self._side_effects = "unverified"  # a real click went out; only the page can say whether it took
             # The word can neither create nor erase a submission; only the page can. Verify the
             # step's own wait + checkpoint (a click can land just before the page settles, so the
             # wait runs first). Never re-clicks, never reverses: a stale signal authorizes nothing.
@@ -387,14 +410,16 @@ class ReplayEngine:
                     "submission click captured before the signal; transfer verified executed; "
                     f"the {word} signal arrived post-dispatch and could not be applied"
                 )
-                self._escalations.append(escalation.resolve_ticket(self.logger, ticket, word, captured, note))
+                self._escalations.append(
+                    escalation.resolve_ticket(self.logger, ticket, word, captured, note, operator=self.operator))
                 return None  # verified: the caller proceeds exactly like an approved step
 
             note = (
                 "submission click captured but the confirmation was not verified; the transfer may or "
                 "may not have posted — verify before any retry"
             )
-            self._escalations.append(escalation.resolve_ticket(self.logger, ticket, word, captured, note))
+            self._escalations.append(
+                escalation.resolve_ticket(self.logger, ticket, word, captured, note, operator=self.operator))
             expected = f"checkpoint {failed.kind}" if failed is not None else "a verifiable checkpoint"
             self._record(i, "step", step, params, GateRecord(verdict=Verdict.ESCALATE, reason=decision.reason),
                          "ok", "ok" if settled else "timed_out", "failed", "error", note, after.url, after)
@@ -410,7 +435,8 @@ class ReplayEngine:
         else:
             reason = "approval claimed but no click was captured"
         recorded_decision = "timeout" if word == "timeout" else "reject"
-        self._escalations.append(escalation.resolve_ticket(self.logger, ticket, recorded_decision, captured))
+        self._escalations.append(
+            escalation.resolve_ticket(self.logger, ticket, recorded_decision, captured, operator=self.operator))
         obs = self.adapter.observe()
         self._record(i, "step", step, params, GateRecord(verdict=Verdict.ESCALATE, reason=decision.reason),
                      "ok", "n/a", "n/a", "blocked", reason, obs.url, obs)
@@ -460,7 +486,9 @@ class ReplayEngine:
             classified = self._classify(step, failed)
             if classified is not None:
                 outcome, detail = classified
-                return self._outcome(run_id, outcome, business_outcome=detail)
+                return self._outcome(run_id, outcome, business_outcome=detail, failure_detail=FailureDetail(
+                    step_index=i, expected=_describe(failed), observed=f"known condition, mapped to {detail}",
+                ))
         if self._probe_session():
             return self._fail(run_id, Outcome.HARD_FAILURE, i, expected, "not met")
         return self._outcome(run_id, Outcome.RECOVERABLE, business_outcome="session_expired")
@@ -487,7 +515,7 @@ class ReplayEngine:
             if login_problem is not None:
                 return login_problem
             self._record(-1, "prelude", None, {}, None, "n/a", "n/a", "n/a", "recovered",
-                         "session re-authenticated after a genuine expiry; retrying the step",
+                         "session found expired (probe-confirmed); re-authenticated; retrying the step",
                          None, None, action="navigate", target_desc="session recovery")
             return None
         return result
@@ -511,6 +539,12 @@ class ReplayEngine:
         """Phase 8, --inject-faults only. Makes the real app behave the way a genuine transient
         network hiccup or a genuine session expiry would — the step that follows has no idea a
         fault was ever involved, only that its wait/checkpoint failed for a real reason."""
+        # Recorded as data, never consulted: nothing below reads this entry. The engine still handles
+        # what follows exactly as it would a real failure of the same shape; the trace just says
+        # plainly that this run was a deliberately induced one.
+        self._record(-1, "prelude", None, {}, None, "n/a", "n/a", "n/a", "injected",
+                     f"operator-requested fault, applied before step {fault.step_index}: {fault.fault_type}",
+                     None, None, action="fault", target_desc=f"injected {fault.fault_type}")
         if fault.fault_type == "clear_session":
             self.adapter.clear_session()
         elif fault.fault_type == "transient_fail":
@@ -566,7 +600,7 @@ class ReplayEngine:
     def _login(self, run_id: str, secrets: Mapping[str, str]) -> ReplayResult | None:
         """None means: logged in, the caller proceeds. Otherwise, the terminal result."""
         if self.logger is not None:
-            self.logger.write_bytes("prelude-00.png", self.adapter.observe().masked_screenshot)
+            self.logger.write_bytes(self._shot_name("prelude-00.png"), self.adapter.observe().masked_screenshot)
         for n, (locator, value) in enumerate(((_USERNAME, secrets["username"]), (_PASSWORD, secrets["password"]))):
             url = self.adapter.observe().url
             decision = self.gate.check(url)
@@ -602,7 +636,13 @@ class ReplayEngine:
                      action="click", target_desc=_LOG_IN.description)
         if unmet is not None:
             if evaluate(_LOGIN_REJECTED, self.adapter, obs, {}):
-                return self._outcome(run_id, Outcome.BUSINESS_OUTCOME, business_outcome="login_rejected")
+                return self._outcome(
+                    run_id, Outcome.BUSINESS_OUTCOME, business_outcome="login_rejected",
+                    failure_detail=FailureDetail(
+                        step_index=-1, expected="login lands on the accounts overview",
+                        observed=f"known condition: {_LOGIN_REJECTED.target.description}",
+                    ),
+                )
             return self._fail(run_id, Outcome.HARD_FAILURE, -1, f"login {unmet.kind}", "not met after Log In")
         return None
 
@@ -619,7 +659,8 @@ class ReplayEngine:
             target_desc = render_locator(step.target, params).description
         screenshot = None
         if self.logger is not None and obs is not None:
-            screenshot = f"{phase}-{step_no:02d}.png" if phase == "prelude" else f"step-{step_no:02d}.png"
+            base = f"{phase}-{step_no:02d}.png" if phase == "prelude" else f"step-{step_no:02d}.png"
+            screenshot = self._shot_name(base)
             self.logger.write_bytes(screenshot, obs.masked_screenshot)
         self._steps.append(ReplayTraceStep(
             step_no=step_no, phase=phase, action=action, target=target_desc or "", value=value, gate=gate,
@@ -627,9 +668,28 @@ class ReplayEngine:
             result=result, error=error, url_after=url_after, screenshot=screenshot,
         ))
 
+    def _shot_name(self, base: str, *, consume: bool = True) -> str:
+        """The evidence file for this attempt. A step that runs twice (a retry after session
+        recovery, a second login) gets its own file, so the first attempt's screenshot survives.
+        consume=False only reports the name the next attempt will get."""
+        count = self._shots.get(base, 0)
+        if consume:
+            self._shots[base] = count + 1
+        return base if count == 0 else base.replace(".png", f"-retry{count}.png")
+
+    def _latest_shot(self, base: str) -> str | None:
+        """The most recent evidence file already written under this base name, if any."""
+        count = self._shots.get(base, 0)
+        if count == 0:
+            return None
+        return base if count == 1 else base.replace(".png", f"-retry{count - 1}.png")
+
     def _finish(self, run_id: str, result: ReplayResult) -> ReplayResult:
         if self.logger is not None:
-            self.logger.write_json("trace.json", {"run_id": run_id, "steps": [s.model_dump(mode="json") for s in self._steps]})
+            capability = self._capability_ref.model_dump(mode="json") if self._capability_ref else None
+            self.logger.write_json("trace.json", {
+                "run_id": run_id, "capability": capability, "steps": [s.model_dump(mode="json") for s in self._steps],
+            })
             self.logger.write_json("result.json", result.model_dump(mode="json"))
         return result
 
@@ -646,6 +706,7 @@ class ReplayEngine:
         return ReplayResult(
             run_id=run_id, status=status, business_outcome=business_outcome,
             failure_detail=failure_detail, escalations=self._escalations,
+            side_effects=self._side_effects, capability=self._capability_ref,
         )
 
     def _fail(self, run_id: str, status: Outcome, step_index: int, expected: str, observed: str) -> ReplayResult:
@@ -675,9 +736,12 @@ class ReplayEngine:
     ) -> ReplayResult:
         """Record a durable ticket a human can act on, then stop. The ticket stays "open": there
         is no in-run resume, so nothing here ever resolves it."""
+        self._side_effects = "unverified"
         ticket = escalation.open_ticket(
             self.logger, run_id, i, "money-moving step dispatched but its confirmation was never verified",
-            self._verification_procedure(capability, params, balance),
+            self._verification_procedure(capability, params, balance), capability=self._capability_ref,
+            step_description=capability.steps[i].target.description,
+            screenshot=self._latest_shot(f"step-{i:02d}.png"),  # already written by the failing step's own record
         )
         self._escalations.append(ticket)
         return self._unverified_result(
@@ -706,6 +770,13 @@ class ReplayEngine:
                 given = ", ".join(f"{k}={render(str(v), params)}" for k, v in s.parameters.items())
                 lines.append(f"{n}. {s.action} {render(s.target.description, params)}" + (f" ({given})" if given else ""))
         return "\n".join(lines)
+
+
+def _describe(cond: Condition) -> str:
+    """A condition in words, from the artifact's own text: placeholders stay placeholders
+    ({{from_account}}), so it names the parameter and never leaks its value."""
+    target = cond.target.description if cond.target else ""
+    return f"{cond.kind} {target}" + (f" = {cond.value}" if cond.value else "")
 
 
 def _matches_target(target, captured: list[dict]) -> bool:

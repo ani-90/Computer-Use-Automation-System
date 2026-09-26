@@ -1,5 +1,10 @@
 {
-  "run_id": "eb3b99dd-689d-4aac-a423-fa785efeabbf",
+  "run_id": "5426cc1f-3027-42cf-b3df-8984dea64c3c",
+  "capability": {
+    "name": "transfer_funds",
+    "version": "2",
+    "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+  },
   "steps": [
     {
       "step_no": 0,
@@ -9,7 +14,7 @@
       "value": null,
       "gate": {
         "verdict": "allow",
-        "reason": "no amount involved"
+        "reason": "path allowed; the amount rules apply at the submission step"
       },
       "precondition_status": "n/a",
       "wait_status": "n/a",
@@ -27,7 +32,7 @@
       "value": null,
       "gate": {
         "verdict": "allow",
-        "reason": "no amount involved"
+        "reason": "path allowed; the amount rules apply at the submission step"
       },
       "precondition_status": "n/a",
       "wait_status": "n/a",
@@ -57,10 +62,10 @@
       "phase": "step",
       "action": "extract",
       "target": "cell[row \"[REDACTED]\", \"Balance*\"]",
-      "value": "$408.82",
+      "value": "$481.46",
       "gate": {
         "verdict": "allow",
-        "reason": "no amount involved"
+        "reason": "path allowed; the amount rules apply at the submission step"
       },
       "precondition_status": "ok",
       "wait_status": "ok",
@@ -78,7 +83,7 @@
       "value": null,
       "gate": {
         "verdict": "allow",
-        "reason": "no amount involved"
+        "reason": "path allowed; the amount rules apply at the submission step"
       },
       "precondition_status": "ok",
       "wait_status": "ok",
@@ -96,7 +101,7 @@
       "value": null,
       "gate": {
         "verdict": "allow",
-        "reason": "no amount involved"
+        "reason": "path allowed; the amount rules apply at the submission step"
       },
       "precondition_status": "ok",
       "wait_status": "ok",
@@ -114,7 +119,7 @@
       "value": null,
       "gate": {
         "verdict": "allow",
-        "reason": "no amount involved"
+        "reason": "path allowed; the amount rules apply at the submission step"
       },
       "precondition_status": "ok",
       "wait_status": "ok",
@@ -132,7 +137,7 @@
       "value": null,
       "gate": {
         "verdict": "allow",
-        "reason": "no amount involved"
+        "reason": "path allowed; the amount rules apply at the submission step"
       },
       "precondition_status": "ok",
       "wait_status": "ok",

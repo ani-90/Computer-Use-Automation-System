@@ -1,5 +1,10 @@
 {
-  "run_id": "8afb33dc-a928-4807-af2f-3e7ed9dd5037",
+  "run_id": "42e3f71c-5aa6-480c-a42d-4b6ddbf70f76",
+  "capability": {
+    "name": "transfer_funds",
+    "version": "2",
+    "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+  },
   "steps": [
     {
       "step_no": 0,
@@ -9,7 +14,7 @@
       "value": null,
       "gate": {
         "verdict": "allow",
-        "reason": "no amount involved"
+        "reason": "path allowed; the amount rules apply at the submission step"
       },
       "precondition_status": "n/a",
       "wait_status": "n/a",
@@ -27,7 +32,7 @@
       "value": null,
       "gate": {
         "verdict": "allow",
-        "reason": "no amount involved"
+        "reason": "path allowed; the amount rules apply at the submission step"
       },
       "precondition_status": "n/a",
       "wait_status": "n/a",
@@ -57,10 +62,10 @@
       "phase": "step",
       "action": "extract",
       "target": "cell[row \"[REDACTED]\", \"Balance*\"]",
-      "value": "$181.46",
+      "value": "$267.96",
       "gate": {
         "verdict": "allow",
-        "reason": "no amount involved"
+        "reason": "path allowed; the amount rules apply at the submission step"
       },
       "precondition_status": "ok",
       "wait_status": "ok",
@@ -78,7 +83,7 @@
       "value": null,
       "gate": {
         "verdict": "allow",
-        "reason": "no amount involved"
+        "reason": "path allowed; the amount rules apply at the submission step"
       },
       "precondition_status": "ok",
       "wait_status": "ok",
@@ -96,7 +101,7 @@
       "value": null,
       "gate": {
         "verdict": "allow",
-        "reason": "no amount involved"
+        "reason": "path allowed; the amount rules apply at the submission step"
       },
       "precondition_status": "ok",
       "wait_status": "ok",
@@ -114,7 +119,7 @@
       "value": null,
       "gate": {
         "verdict": "allow",
-        "reason": "no amount involved"
+        "reason": "path allowed; the amount rules apply at the submission step"
       },
       "precondition_status": "ok",
       "wait_status": "ok",
@@ -132,7 +137,7 @@
       "value": null,
       "gate": {
         "verdict": "allow",
-        "reason": "no amount involved"
+        "reason": "path allowed; the amount rules apply at the submission step"
       },
       "precondition_status": "ok",
       "wait_status": "ok",
@@ -141,6 +146,21 @@
       "error": null,
       "url_after": "http://localhost:8080/parabank/transfer.htm",
       "screenshot": "step-04.png"
+    },
+    {
+      "step_no": -1,
+      "phase": "prelude",
+      "action": "fault",
+      "target": "injected transient_fail",
+      "value": null,
+      "gate": null,
+      "precondition_status": "n/a",
+      "wait_status": "n/a",
+      "checkpoint_status": "n/a",
+      "result": "injected",
+      "error": "operator-requested fault, applied before step 5: transient_fail",
+      "url_after": null,
+      "screenshot": null
     },
     {
       "step_no": 5,

@@ -1,0 +1,21 @@
+{
+  "ticket_id": "a1fa502e-ca52-44b8-bad9-ec1e5427f114",
+  "run_id": "5426cc1f-3027-42cf-b3df-8984dea64c3c",
+  "step_index": 5,
+  "reason": "amount exceeds approval threshold",
+  "status": "resolved",
+  "decision": "timeout",
+  "captured_human_actions": [],
+  "note": null,
+  "procedure": null,
+  "opened_at": "2026-09-26T11:08:18+00:00",
+  "resolved_at": "2026-09-26T11:09:18+00:00",
+  "capability": {
+    "name": "transfer_funds",
+    "version": "2",
+    "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+  },
+  "step_description": "button \"Transfer\"",
+  "screenshot": "step-05.png",
+  "operator": "demo-operator"
+}

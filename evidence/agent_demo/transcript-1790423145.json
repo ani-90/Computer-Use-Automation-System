@@ -1,5 +1,5 @@
 {
-  "instruction": "Call the transfer_funds tool now with from_account=[REDACTED], to_account=[REDACTED], amount=5. Do not ask me any questions and do not change the arguments.",
+  "instruction": "transfer 5 dollars from account [REDACTED] to account [REDACTED]",
   "catalog": [
     {
       "name": "transfer_funds",
@@ -27,7 +27,7 @@
   ],
   "first_response": [
     {
-      "id": "toolu_01P36Be9JynfJn2mv63Vb1Zc",
+      "id": "toolu_01WWL34rbXsXiABi6giC3Dct",
       "caller": {
         "type": "direct"
       },
@@ -46,21 +46,27 @@
     "amount": "5"
   },
   "invoke_response": {
-    "run_id": "6b251114-d056-4323-a374-50584b7980d5",
-    "status": "POLICY_BLOCK",
+    "run_id": "764f8607-483d-419c-bbd2-8963fd858b79",
+    "status": "BUSINESS_OUTCOME",
     "outputs": null,
-    "business_outcome": null,
+    "business_outcome": "invalid_account",
     "failure_detail": {
-      "step_index": -1,
-      "expected": "policy allow",
-      "observed": "from_account and to_account must be different"
+      "step_index": 3,
+      "expected": "option_present combobox \"to account #\" = {{to_account}}",
+      "observed": "known condition, mapped to invalid_account"
     },
     "escalations": [],
+    "side_effects": "none",
+    "capability": {
+      "name": "transfer_funds",
+      "version": "2",
+      "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+    },
     "llm_calls": 0
   },
   "final_response": [
     {
-      "text": "The transfer_funds tool was called with the parameters you specified. The operation resulted in a POLICY_BLOCK status with the following error:\n\n**\"from_account and to_account must be different\"**\n\nThe system rejected the transfer because both the source and destination accounts are the same ([REDACTED]). The policy requires that transfers must be between different accounts.",
+      "text": "The transfer failed because account [REDACTED] is invalid. Please verify that the recipient account number is correct and try again. Is there a different account number you'd like to transfer the $5 to?",
       "type": "text"
     }
   ]

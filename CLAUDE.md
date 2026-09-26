@@ -14,13 +14,13 @@ from a real fault without one.
 Phase 9 is built in a deliberately scoped form on branch `phase-9-dispatch-unverified` (not yet merged): the
 secondary escalation trigger for a money-moving click whose confirmation never verifies (see "Dispatched but
 unverified" below), money precision (`src/cua/money.py`), the operator-only `CUA_FAULT` switch for a live HTTP fault
-test, and compiler fixes found by live discovery runs. Live-verified from the CLI (16 scenarios) and over HTTP through
-the agent (7 runs). Not built from the original Phase 9 idea: the `drop_response` fault, a live browser handoff with
+test, and compiler fixes found by live discovery runs. Live-verified from the CLI (15 scenarios) and over HTTP through
+the agent (8 runs). Not built from the original Phase 9 idea: the `drop_response` fault, a live browser handoff with
 in-run resume (`complete` / `retry_step` / `abort`), and engine-side balance reconciliation. Those are named cuts.
 
-Evidence: curated, reviewed, and audited. `evidence/by-outcome/replay/` holds 22 replay runs (one folder per
+Evidence: curated, reviewed, and audited. `evidence/by-outcome/replay/` holds 23 replay runs (one folder per
 scenario, named by outcome, including the same scenarios over HTTP), `evidence/by-outcome/discovery/` one run per
-discovery stop reason (its `SUCCESS` is the run the committed artifact was compiled from), `evidence/agent_demo/` seven
+discovery stop reason (its `SUCCESS` is the run the committed artifact was compiled from), `evidence/agent_demo/` eight
 redacted transcripts. Raw run folders are NOT committed. `python scripts/audit_evidence.py --tracked` passes with 0
 problems and 0 warnings: every run's `run_id` agrees across its files and with its README's `Source run:`, and the
 artifact's `created_from` resolves to a discovery run present in the evidence.
@@ -99,6 +99,16 @@ The design docs live outside the repo (the user's Downloads folder): `approach_4
   terminal `RECOVERABLE` if that one retry also fails. Every other `RECOVERABLE`-adjacent outcome still means
   classification only — safe and cheap to `replay()` again, never auto-retried. Inputs that must differ
   (`distinct_inputs`, e.g. from/to account) that don't are `POLICY_BLOCK` everywhere — CLI, engine and HTTP.
+- The retry contract (`ReplayResult.side_effects`, set on EVERY result, also over HTTP): `none` — nothing was
+  dispatched, safe to run again; `unverified` — the money-moving step was dispatched but its outcome could not be
+  confirmed, check the ledger before any retry; `committed` — dispatched AND confirmed, so a later failure (a read
+  after the transfer) must never be "fixed" by running the whole thing again. The engine sets it from what it actually
+  did, not from which step failed. Every result and trace also names the artifact that produced it (`capability`: name,
+  version, `created_from`), a fault-injected run says so in its trace (an `injected` entry; nothing reads it), each
+  attempt of a retried step keeps its own screenshot (`*-retry1.png`), and a ticket records `opened_at`/`resolved_at`
+  (UTC), the artifact, the step's own target (placeholders, never values), its screenshot and, when named through the
+  `CUA_OPERATOR` environment variable, the operator. A mapped business outcome (`invalid_account`) says which step and
+  which condition, by parameter name.
 - Dispatched but unverified (Phase 9, scoped): once the `is_submission` click has been dispatched, the engine
   never clicks it again. It waits `Config.submit_confirmation_wait_ms` (default 60s, overriding the artifact's
   shorter wait for that one step) on the same page; if the confirmation still doesn't verify it does NOT probe

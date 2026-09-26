@@ -1,6 +1,6 @@
 # Replay outcome: HTTP_SUCCESS
 
-Source run: `0fff2030-5f4f-4038-b806-654d96b9f49b` (this folder is a full copy of that run's evidence; the raw run folder itself is not committed).
+Source run: `6502ef99-e4dd-4743-a079-d604e92b2a6a` (this folder is a full copy of that run's evidence; the raw run folder itself is not committed).
 
 The agent-facing path (`api.py` -> `invoke_capability` -> the same `ReplayEngine`). The model discovers the tool from the catalog, calls it with `amount: '5'`, and the service returns `SUCCESS`; the model reports the confirmation and new balance.
 
@@ -9,9 +9,11 @@ Command shape: `the agent is asked to transfer 5 dollars`
 Result:
 - `status: SUCCESS`
 - outputs: confirmation_text, new_balance, transaction_id
+- `side_effects: committed` (the retry contract: `none` safe to retry, `unverified` check the ledger first, `committed` the money moved)
+- artifact: `transfer_funds` version `2`, `created_from` the discovery run in `by-outcome/discovery/SUCCESS`
 - `llm_calls: 0`
 
-The matching transcript: [`../../../agent_demo/transcript-1790416751.json`](../../../agent_demo/transcript-1790416751.json).
+The matching transcript: [`../../../agent_demo/transcript-1790422625.json`](../../../agent_demo/transcript-1790422625.json).
 
 Files: `log.jsonl`, `prelude-*.png`, `result.json`, `step-*.png`, `trace.json`.
 

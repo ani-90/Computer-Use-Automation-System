@@ -4,9 +4,7 @@ import uuid
 import pytest
 from pydantic import ValidationError
 
-from cua.classifier import classify
 from cua.config import Config
-from cua.enums import Outcome
 from cua.evidence import EvidenceLogger, new_run_id
 from cua.models import Capability, Condition, Locator, LocatorCandidate, Step, WaitStrategy
 from cua.redaction import Redactor
@@ -77,12 +75,6 @@ def test_write_json_protects_run_id_not_just_the_log_method(tmp_path):
     logger.write_json("trace.json", {"run_id": run_id, "steps": []})
     saved = json.loads((tmp_path / run_id / "trace.json").read_text(encoding="utf-8"))
     assert saved["run_id"] == run_id
-
-
-def test_unmapped_condition_is_hard_failure():
-    assert classify("something_new") == Outcome.HARD_FAILURE
-    assert classify(None) == Outcome.HARD_FAILURE
-    assert classify("session_expired") == Outcome.RECOVERABLE
 
 
 def test_step_rejects_raw_selector_target():

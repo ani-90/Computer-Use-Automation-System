@@ -1,13 +1,19 @@
 {
-  "run_id": "39dc7e0d-dded-4985-8e50-448faa6b1244",
+  "run_id": "557d229f-6f1d-4e48-a653-b5bb335ada4b",
   "status": "SUCCESS",
   "outputs": {
     "confirmation_text": "$5.00 has been transferred from account #[REDACTED] to account #[REDACTED].",
-    "new_balance": "$403.82",
+    "new_balance": "$476.46",
     "transaction_id": "[REDACTED]"
   },
   "business_outcome": null,
   "failure_detail": null,
   "escalations": [],
+  "side_effects": "committed",
+  "capability": {
+    "name": "transfer_funds",
+    "version": "2",
+    "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+  },
   "llm_calls": 0
 }

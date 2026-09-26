@@ -196,13 +196,15 @@ def _run_replay(capability_path: str, goal_path: str, raw_params: list[str], fau
         return "reject" if answer == "reject" else "approve"
 
     with PlaywrightAdapter(config, logger, secrets=list(secrets.values())) as adapter:
-        result = ReplayEngine(adapter, PolicyGate(config), logger).replay(
+        result = ReplayEngine(adapter, PolicyGate(config), logger, operator=os.environ.get("CUA_OPERATOR") or None).replay(
             capability, params, secrets, start_url, on_escalate, fault
         )
     summary = redactor.redact(result.model_dump(mode="json"))
     print(f"\nstatus: {summary['status']}")
     if summary.get("business_outcome"):
         print(f"business_outcome: {summary['business_outcome']}")
+    if summary.get("side_effects"):
+        print(f"side_effects: {summary['side_effects']}")
     print(f"llm_calls: {summary['llm_calls']}")
     if summary["outputs"]:
         print(f"  confirmation_text: {summary['outputs']['confirmation_text']}")

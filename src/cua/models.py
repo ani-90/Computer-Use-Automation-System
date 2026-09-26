@@ -137,6 +137,25 @@ class Capability(_Strict):
     created_from: str | None = None
 
 
+# What a caller needs to know before deciding whether a failed run is safe to run again.
+#   none        nothing was dispatched: safe to retry.
+#   unverified  the money-moving step was dispatched but its outcome could not be confirmed:
+#               do NOT retry until a human has checked the ledger.
+#   committed   the money-moving step was dispatched and its confirmation verified: the side
+#               effect happened, so a later failure (a read after the transfer) must not be
+#               "fixed" by running the whole thing again.
+SideEffects = Literal["none", "unverified", "committed"]
+
+
+class CapabilityRef(_Strict):
+    """Which artifact a run used, so any result, trace or ticket can be tied back to exactly one
+    artifact version and, through created_from, to the discovery run it was compiled from."""
+
+    name: str
+    version: str
+    created_from: str | None = None
+
+
 class Outputs(_Strict):
     confirmation_text: str
     new_balance: str | None = None  # as rendered, e.g. "$1100.00"
@@ -165,6 +184,14 @@ class Escalation(_Strict):
     # Set only on a dispatched-but-unverified ticket: what a human needs to check the ledger.
     # Never returned to an HTTP caller (it embeds the run's real parameters).
     procedure: str | None = None
+    # A ticket has to stand on its own when someone opens it later: when, for which artifact and
+    # step, what the page looked like, and who acted (None: unattributed, nobody was named).
+    opened_at: str | None = None  # UTC, ISO 8601
+    resolved_at: str | None = None
+    capability: CapabilityRef | None = None
+    step_description: str | None = None  # the step's own target, with placeholders, never real values
+    screenshot: str | None = None  # the evidence file showing that step
+    operator: str | None = None
 
 
 class FaultInjection(_Strict):
@@ -193,4 +220,8 @@ class ReplayResult(_Strict):
     business_outcome: str | None = None
     failure_detail: FailureDetail | None = None
     escalations: list[Escalation] = Field(default_factory=list)
+    # The retry contract: did the money-moving step happen? See SideEffects. Set on EVERY result,
+    # so a caller never has to infer it from which step failed.
+    side_effects: SideEffects = "none"
+    capability: CapabilityRef | None = None  # the artifact this run used
     llm_calls: int = 0  # always 0: computed, never set by anything, never hardcoded elsewhere

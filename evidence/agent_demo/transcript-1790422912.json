@@ -1,5 +1,5 @@
 {
-  "instruction": "transfer 150 dollars from account [REDACTED] to account [REDACTED]",
+  "instruction": "transfer 5 dollars from account [REDACTED] to account [REDACTED]",
   "catalog": [
     {
       "name": "transfer_funds",
@@ -27,14 +27,14 @@
   ],
   "first_response": [
     {
-      "id": "toolu_01WpvnC8WhJwBNt9CUK48Cet",
+      "id": "toolu_01MHyCutprTjXfEwQCn512Y4",
       "caller": {
         "type": "direct"
       },
       "input": {
         "from_account": "[REDACTED]",
         "to_account": "[REDACTED]",
-        "amount": "150"
+        "amount": "5"
       },
       "name": "transfer_funds",
       "type": "tool_use"
@@ -43,24 +43,30 @@
   "invoke_request": {
     "from_account": "[REDACTED]",
     "to_account": "[REDACTED]",
-    "amount": "150"
+    "amount": "5"
   },
   "invoke_response": {
-    "run_id": "2f0a30ac-0f76-4327-bbbf-c03475b34c8f",
-    "status": "POLICY_BLOCK",
+    "run_id": "1d96b3bd-03e0-428d-9ae6-df9765abbc8f",
+    "status": "BUSINESS_OUTCOME",
     "outputs": null,
-    "business_outcome": null,
+    "business_outcome": "invalid_account",
     "failure_detail": {
-      "step_index": 5,
-      "expected": "policy allow",
-      "observed": "amount exceeds approval threshold"
+      "step_index": 0,
+      "expected": "element_visible cell[row \"{{from_account}}\", \"Balance*\"]",
+      "observed": "known condition, mapped to invalid_account"
     },
     "escalations": [],
+    "side_effects": "none",
+    "capability": {
+      "name": "transfer_funds",
+      "version": "2",
+      "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+    },
     "llm_calls": 0
   },
   "final_response": [
     {
-      "text": "The transfer has been blocked by a policy restriction. The system indicates that the amount of $150 exceeds the approval threshold for this transfer.\n\nThis means the transfer from account [REDACTED] to account [REDACTED] cannot be completed at this amount without additional approval or authorization. You may need to:\n- Contact your account administrator for approval\n- Reduce the transfer amount below the approval threshold\n- Use a different authorization method\n\nWould you like to try a different amount or take any other action?",
+      "text": "The transfer failed because account [REDACTED] is invalid. The system couldn't find or access that account. Please verify that the account number is correct and try again with a valid account number.",
       "type": "text"
     }
   ]

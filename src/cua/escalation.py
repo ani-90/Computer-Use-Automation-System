@@ -8,20 +8,27 @@ variable, so it can be inspected mid-run from outside the process.
 """
 
 import uuid
+from datetime import UTC, datetime
 
 from cua.evidence import EvidenceLogger
-from cua.models import Escalation
+from cua.models import CapabilityRef, Escalation
 
 
 def new_ticket_id() -> str:
     return str(uuid.uuid4())
 
 
+def _now() -> str:
+    return datetime.now(UTC).isoformat(timespec="seconds")
+
+
 def open_ticket(
-    logger: EvidenceLogger | None, run_id: str, step_index: int, reason: str, procedure: str | None = None
+    logger: EvidenceLogger | None, run_id: str, step_index: int, reason: str, procedure: str | None = None,
+    *, capability: CapabilityRef | None = None, step_description: str | None = None, screenshot: str | None = None,
 ) -> Escalation:
     ticket = Escalation(
-        ticket_id=new_ticket_id(), run_id=run_id, step_index=step_index, reason=reason, procedure=procedure
+        ticket_id=new_ticket_id(), run_id=run_id, step_index=step_index, reason=reason, procedure=procedure,
+        opened_at=_now(), capability=capability, step_description=step_description, screenshot=screenshot,
     )
     _write(logger, ticket)
     return ticket
@@ -33,10 +40,12 @@ def resolve_ticket(
     decision: str,
     captured: list[dict[str, str]],
     note: str | None = None,
+    operator: str | None = None,
 ) -> Escalation:
-    resolved = ticket.model_copy(
-        update={"status": "resolved", "decision": decision, "captured_human_actions": captured, "note": note}
-    )
+    resolved = ticket.model_copy(update={
+        "status": "resolved", "decision": decision, "captured_human_actions": captured, "note": note,
+        "resolved_at": _now(), "operator": operator,
+    })
     _write(logger, resolved)
     return resolved
 

@@ -1,0 +1,73 @@
+{
+  "instruction": "Call the transfer_funds tool now with from_account=[REDACTED], to_account=[REDACTED], amount=5. Do not ask me any questions and do not change the arguments.",
+  "catalog": [
+    {
+      "name": "transfer_funds",
+      "description": "Run the 'transfer_funds' capability against the live app.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "from_account": {
+            "type": "string"
+          },
+          "to_account": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_account",
+          "to_account",
+          "amount"
+        ]
+      }
+    }
+  ],
+  "first_response": [
+    {
+      "id": "toolu_01PAzSVoD1DFF2G4mvP8sdTy",
+      "caller": {
+        "type": "direct"
+      },
+      "input": {
+        "from_account": "[REDACTED]",
+        "to_account": "[REDACTED]",
+        "amount": "5"
+      },
+      "name": "transfer_funds",
+      "type": "tool_use"
+    }
+  ],
+  "invoke_request": {
+    "from_account": "[REDACTED]",
+    "to_account": "[REDACTED]",
+    "amount": "5"
+  },
+  "invoke_response": {
+    "run_id": "ea7f3570-0e74-4b35-9e5e-496aa5533736",
+    "status": "POLICY_BLOCK",
+    "outputs": null,
+    "business_outcome": null,
+    "failure_detail": {
+      "step_index": -1,
+      "expected": "policy allow",
+      "observed": "from_account and to_account must be different"
+    },
+    "escalations": [],
+    "side_effects": "none",
+    "capability": {
+      "name": "transfer_funds",
+      "version": "2",
+      "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+    },
+    "llm_calls": 0
+  },
+  "final_response": [
+    {
+      "text": "The transfer_funds tool has been called with your specified arguments. However, the request was blocked by a policy check. The system returned a `POLICY_BLOCK` status with the message: **\"from_account and to_account must be different\"**\n\nThis indicates that the transfer failed because you cannot transfer funds from an account to itself (both from_account and to_account were set to [REDACTED]).",
+      "type": "text"
+    }
+  ]
+}

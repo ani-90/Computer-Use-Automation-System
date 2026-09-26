@@ -1,5 +1,5 @@
 {
-  "run_id": "0a709272-f151-412e-9f45-2084282db772",
+  "run_id": "81797a82-bbd5-490f-a9aa-360c2088081f",
   "status": "POLICY_BLOCK",
   "outputs": null,
   "business_outcome": null,
@@ -9,5 +9,11 @@
     "observed": "amount supports at most 2 decimal places (USD)"
   },
   "escalations": [],
+  "side_effects": "none",
+  "capability": {
+    "name": "transfer_funds",
+    "version": "2",
+    "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+  },
   "llm_calls": 0
 }
