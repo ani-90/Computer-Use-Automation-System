@@ -161,7 +161,7 @@ def _run_replay(capability_path: str, goal_path: str, raw_params: list[str], fau
         secrets = spec.secrets(os.environ)
         start_url = spec.start_url(os.environ)
     except KeyError as e:
-        print(f"error: missing environment variable {e}", file=sys.stderr)
+        print(f"error: missing environment variable {e} (copy .env.example to .env and fill it in)", file=sys.stderr)
         return 2
     except (ValueError, OSError) as e:
         print(f"error: {e}", file=sys.stderr)
@@ -246,7 +246,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         start_url = spec.start_url(os.environ)
     except KeyError as e:
-        print(f"error: missing environment variable {e}", file=sys.stderr)
+        print(f"error: missing environment variable {e} (copy .env.example to .env and fill it in)", file=sys.stderr)
         return 2
     except PolicyBlockError as e:  # before anything is dispatched: no browser, no model call
         print(f"policy block: {e}", file=sys.stderr)

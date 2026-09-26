@@ -11,7 +11,7 @@ own branch is kept, not deleted, as history). That covers the whole core thesis:
 replay deterministically -> classify every outcome -> escalate to a human when policy requires it -> recover on its own
 from a real fault without one.
 
-Phase 9 is built in a deliberately scoped form on branch `phase-9-dispatch-unverified` (not yet merged): the
+Phase 9 is built in a deliberately scoped form on branch `phase-9-dispatch-unverified` (merged to `main`): the
 secondary escalation trigger for a money-moving click whose confirmation never verifies (see "Dispatched but
 unverified" below), money precision (`src/cua/money.py`), the operator-only `CUA_FAULT` switch for a live HTTP fault
 test, and compiler fixes found by live discovery runs. Live-verified from the CLI (15 scenarios) and over HTTP through
@@ -30,8 +30,9 @@ needed; if ParaBank printed a thousands separator the exact-text confirmation ch
 as a flagged `dispatch_unverified`, not a silent error), and session expiry after step 0 (recovery only lands correctly
 at step 0 live; see `replay.py`'s module docstring).
 
-Not done: **Phase 10** (deliverables: `README.md` is still a placeholder, `REPORT.md` with the 7 fixed headings does not
-exist yet, and a fresh-clone verification pass).
+Phase 10 (deliverables): `README.md` is written (setup, discover, replay, agent path, evidence, known limits) and a
+fresh-clone software check passed (439 tests, ruff, audit clean, no `.env` needed). Not done: `REPORT.md` with the 7
+fixed headings (to be discussed before writing; the README links to it).
 
 ## Source of truth
 The design docs live outside the repo (the user's Downloads folder): `approach_4.md` (what to build),
