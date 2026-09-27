@@ -12,7 +12,10 @@ Three kinds of folder, three rules:
                run it was copied from ("Source run: `.../<uuid>`"), and every run_id inside must equal that.
   transcripts  evidence/agent_demo/*.json: any run_id they cite should resolve to a run in the repo (warning).
   artifacts    capabilities/*.json: `created_from` must name a discovery run whose evidence is present
-               (an artifact that names no run is a warning: it cannot be traced back).
+               (an artifact that names no run is a warning: it cannot be traced back). If that discovery
+               run's folder also holds a same-named copy of the artifact (a saved example artifact,
+               placed in evidence/ for a reviewer), the copy must be byte-identical to the real one —
+               it is never a second source of truth.
 
 Only ids, file names and folder names are ever printed — never file contents. Exit code 0 means clean.
 """
@@ -138,10 +141,15 @@ def _group_by_folder(evidence: Path, files: list[Path]) -> dict[tuple[str, ...],
     return grouped
 
 
-def _audit_artifacts(capabilities: Path, reports: list[FolderReport]) -> list[FolderReport]:
-    """Each compiled artifact must be traceable to the discovery run that produced it."""
+def _audit_artifacts(evidence: Path, capabilities: Path, reports: list[FolderReport]) -> list[FolderReport]:
+    """Each compiled artifact must be traceable to the discovery run that produced it, and if a copy of
+    it was saved alongside that run's evidence (for a reviewer), the copy must match exactly."""
     discovery_runs = {
         r.expected for r in reports
+        if r.expected and (r.kind == "raw-discovery" or r.path.startswith("by-outcome/discovery/"))
+    }
+    folder_by_run = {
+        r.expected: r.path for r in reports
         if r.expected and (r.kind == "raw-discovery" or r.path.startswith("by-outcome/discovery/"))
     }
     out: list[FolderReport] = []
@@ -159,6 +167,13 @@ def _audit_artifacts(capabilities: Path, reports: list[FolderReport]) -> list[Fo
                 report.problems.append("created_from is not a run id (uuid)")
             elif source not in discovery_runs:
                 report.problems.append(f"created_from {source} names a discovery run with no evidence in scope")
+            elif source in folder_by_run:
+                copy = evidence / folder_by_run[source] / path.name
+                if copy.is_file() and copy.read_bytes() != path.read_bytes():
+                    report.problems.append(
+                        f"{copy.relative_to(evidence)} differs from the real artifact — it is a saved copy, "
+                        "never a second source of truth"
+                    )
         out.append(report)
     return out
 
@@ -185,7 +200,7 @@ def audit(
         reports.append(_audit_folder(evidence, rel, kind, folder_files))
 
     if capabilities is not None and capabilities.is_dir():
-        reports += _audit_artifacts(capabilities, reports)
+        reports += _audit_artifacts(evidence, capabilities, reports)
 
     known = {r.expected for r in reports if r.expected and r.kind != "artifact"}
     for path in sorted(p for p in files if p.parent.relative_to(evidence).parts[:1] == ("agent_demo",)):

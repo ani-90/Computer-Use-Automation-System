@@ -64,3 +64,19 @@ Account numbers are deliberately not recorded here; they are demo parameters, ne
 - Locator viability on the transfer and Find Transactions pages (names with special characters, duplicate
   buttons): to be confirmed by the Phase 2 rerun.
 - Real `error_mapping` content for `BUSINESS_OUTCOME`: Phase 6 probe run.
+
+## Container reset (2026-09-26)
+
+The sub-cent corruption above (transferring `1.98484`) left the container permanently unable to format one
+account's balance. Per that finding, a `docker start` doesn't clear it — only recreating the container does,
+since the corrupted value is stored data, not process state. The container was recreated
+(`docker rm -f parabank`, then `docker run` again), which — unlike the `docker start` restart in "Environment"
+above — does **not** preserve data: `agentdemo` and its accounts did not survive this one, and the login was
+re-registered from scratch (profile name set to "Test Agent"; account numbers, again, not recorded here).
+
+**Everything in "Environment" above (the `$1100.00`/`-$584.50`/`$515.50` balances, and the "survived the
+restart" line) describes the pre-corruption instance and is no longer current.** The behavioral findings
+elsewhere in this file (no overdraft protection, the sub-cent corruption itself, oldest-first transaction
+ordering, the fixed two-decimal confirmation format) are properties of the app, not of one instance's data, and
+remain accurate. Every discovery run and replay scenario now committed under `evidence/` was run against the
+post-reset instance.

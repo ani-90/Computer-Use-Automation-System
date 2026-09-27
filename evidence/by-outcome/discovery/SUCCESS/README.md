@@ -7,8 +7,10 @@ new balance, look up the transaction ID) with no ParaBank-specific knowledge in 
 steps, about 93 seconds, 158,074 input / 2,662 output tokens (limits: `max_steps=40`, `timeout=420s`).
 
 This is the run that produced the committed artifact. `capabilities/transfer_funds.json` records it in
-`created_from`, and `scripts/audit_evidence.py` checks that link resolves to this folder. The compiler (never a hand
-edit) wrote `version: 2`: money parameters are `{{amount:money}}`, with no hardcoded `.00`, and no customer name.
+`created_from`, and `scripts/audit_evidence.py` checks that link resolves to this folder. `transfer_funds.json` in
+this folder is a saved copy of that artifact, kept byte-identical by the same audit script — the real one every
+command reads is still only `capabilities/transfer_funds.json`. The compiler (never a hand edit) wrote `version: 2`:
+money parameters are `{{amount:money}}`, with no hardcoded `.00`, and no customer name.
 
 All four outputs populated in `result.json`: `source_balance_before`, `confirmation_text` (the full sentence, not just
 its heading), `new_balance`, `transaction_id`. The amount used was one never transferred before, so the ledger search
@@ -26,5 +28,6 @@ Files:
 - `log.jsonl` - the raw action/gate log
 - `step-*.png` - a masked screenshot per step
 - `result.json` - the final DiscoveryResult summary
+- `transfer_funds.json` - a saved copy of the compiled artifact this run produced
 
 Credentials and account numbers grepped clean; screenshots reviewed before inclusion.

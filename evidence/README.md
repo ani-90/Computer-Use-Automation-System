@@ -6,8 +6,11 @@ Everything else goes further and is labeled as such.
 
 ## The required minimum
 
-1. **Artifact** - [`capabilities/transfer_funds.json`](../capabilities/transfer_funds.json) (repo root, not duplicated
-   here; the one file the Replay Engine reads). Its `created_from` names the discovery run below.
+1. **Artifact** - a saved copy is
+   [`by-outcome/discovery/SUCCESS/transfer_funds.json`](by-outcome/discovery/SUCCESS/transfer_funds.json), byte-identical
+   to the real one the Replay Engine reads, [`capabilities/transfer_funds.json`](../capabilities/transfer_funds.json)
+   (repo root — that's the one path every command uses; the copy here is for a reviewer, and
+   `scripts/audit_evidence.py` fails if the two ever disagree). Its `created_from` names the discovery run below.
 2. **Discovery run** - [`by-outcome/discovery/SUCCESS/`](by-outcome/discovery/SUCCESS/): the LLM discovering the whole flow
    from scratch, with `transcript.jsonl` (its own reasoning), `trace.json`, screenshots and `result.json`.
 3. **Replay run (happy path)** - [`by-outcome/replay/SUCCESS/`](by-outcome/replay/SUCCESS/): deterministic, `llm_calls: 0`,
