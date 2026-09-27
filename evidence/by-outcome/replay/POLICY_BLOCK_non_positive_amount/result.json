@@ -1,0 +1,19 @@
+{
+  "run_id": "793ecfd8-e924-4df2-ae44-228d25ad0fb0",
+  "status": "POLICY_BLOCK",
+  "outputs": null,
+  "business_outcome": null,
+  "failure_detail": {
+    "step_index": -1,
+    "expected": "policy allow",
+    "observed": "amount must be greater than zero"
+  },
+  "escalations": [],
+  "side_effects": "none",
+  "capability": {
+    "name": "transfer_funds",
+    "version": "2",
+    "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+  },
+  "llm_calls": 0
+}

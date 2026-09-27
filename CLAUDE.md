@@ -27,13 +27,14 @@ element-not-found proves nothing was clicked" rule exactly. Live-verified: a run
 unsatisfiable requirement dispatched a real transfer, confirmed it, then correctly failed to finish and opened a real
 ticket (`evidence/by-outcome/discovery/DEAD_END_dispatch_unverified/`).
 
-Evidence: curated, reviewed, and audited. `evidence/by-outcome/replay/` holds 23 replay runs (one folder per
-scenario, named by outcome, including the same scenarios over HTTP), `evidence/by-outcome/discovery/` one run per
-discovery stop reason plus `DEAD_END_dispatch_unverified` (its `SUCCESS` is the run the committed artifact was
-compiled from), `evidence/agent_demo/` eight redacted transcripts. Raw run folders are NOT committed.
-`python scripts/audit_evidence.py --tracked` passes with 0 problems and 0 warnings (29 folders/artifacts): every
-run's `run_id` agrees across its files and with its README's `Source run:`, and the artifact's `created_from`
-resolves to a discovery run present in the evidence.
+Evidence: curated, reviewed, and audited. `evidence/by-outcome/replay/` holds 24 replay runs (one folder per
+scenario, named by outcome, including the same scenarios over HTTP, plus `POLICY_BLOCK_non_positive_amount` —
+`amount <= 0`, the ordered gate's first rule, the one amount rule that previously had no live folder),
+`evidence/by-outcome/discovery/` one run per discovery stop reason plus `DEAD_END_dispatch_unverified` (its
+`SUCCESS` is the run the committed artifact was compiled from), `evidence/agent_demo/` eight redacted transcripts.
+Raw run folders are NOT committed. `python scripts/audit_evidence.py --tracked` passes with 0 problems and 0
+warnings (30 folders/artifacts): every run's `run_id` agrees across its files and with its README's `Source run:`,
+and the artifact's `created_from` resolves to a discovery run present in the evidence.
 
 Untested edges, named honestly: amounts of $1000 or more (a source balance over $1000 and a supervisor's click are
 needed; if ParaBank printed a thousands separator the exact-text confirmation check would not match, which would surface

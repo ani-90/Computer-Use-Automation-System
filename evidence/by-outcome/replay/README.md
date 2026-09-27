@@ -21,6 +21,8 @@ Every run: `llm_calls: 0`. The Replay Engine has no LLM client.
 
 **POLICY_BLOCK** (a rule refused it; nothing was dispatched)
 - `POLICY_BLOCK_amount_exceeds_balance/`, `POLICY_BLOCK_too_many_decimals/`, `POLICY_BLOCK_same_account/`
+- `POLICY_BLOCK_non_positive_amount/` - `amount <= 0`, the ordered gate's first rule; judged before the browser
+  opens, same as the other amount rules below it
 - `POLICY_BLOCK_supervisor_rejected/`, `POLICY_BLOCK_escalation_timeout/` (the ticket records `timeout`, distinct from `reject`)
 
 **HARD_FAILURE**

@@ -22,7 +22,7 @@ Everything else goes further and is labeled as such.
 
 ## Bonus: every other outcome, and the agent path
 
-- [`by-outcome/replay/`](by-outcome/replay/) - 23 replay runs, one folder per scenario, named by outcome; its `README.md`
+- [`by-outcome/replay/`](by-outcome/replay/) - 24 replay runs, one folder per scenario, named by outcome; its `README.md`
   is the index. It covers all five outcomes (`SUCCESS`, `BUSINESS_OUTCOME`, `RECOVERABLE` handled by auto-recovery,
   `HARD_FAILURE`, `POLICY_BLOCK`), human escalation (approve, reject, timeout, and a click that disagrees with the typed
   word), decimal amounts, and the same scenarios over HTTP through the agent.

@@ -57,7 +57,7 @@ The runs below move real money inside this sandbox. If you need a clean slate, r
 ```bash
 pytest                                      # 447 tests
 ruff check .
-python scripts/audit_evidence.py --tracked  # every run_id in the committed evidence agrees: 29 clean, 0 problems
+python scripts/audit_evidence.py --tracked  # every run_id in the committed evidence agrees: 30 clean, 0 problems
 ```
 
 ## 4. Discover (once, costs about $0.35)
@@ -162,7 +162,7 @@ synchronously. See `REPORT.md` for how a production version would differ.
 ## 8. Evidence
 
 [`evidence/README.md`](evidence/README.md) is the map. Start with `evidence/by-outcome/replay/SUCCESS/` and
-`evidence/by-outcome/discovery/SUCCESS/`. There are 23 replay runs (each scenario above, and the same ones over HTTP)
+`evidence/by-outcome/discovery/SUCCESS/`. There are 24 replay runs (each scenario above, and the same ones over HTTP)
 and 8 agent transcripts, all with a README naming the run it came from.
 `python scripts/audit_evidence.py --tracked` re-checks the whole tree.
 

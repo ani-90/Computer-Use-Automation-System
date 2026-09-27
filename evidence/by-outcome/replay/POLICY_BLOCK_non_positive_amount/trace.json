@@ -1,0 +1,9 @@
+{
+  "run_id": "793ecfd8-e924-4df2-ae44-228d25ad0fb0",
+  "capability": {
+    "name": "transfer_funds",
+    "version": "2",
+    "created_from": "cbc80832-5586-47c1-ac22-4d0a468420ea"
+  },
+  "steps": []
+}
