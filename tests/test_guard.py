@@ -233,3 +233,30 @@ def test_landing_on_a_denied_page_is_blocked():
     g = guard()
     assert g.landing("http://h/parabank/services/x").verdict == Verdict.BLOCK
     assert g.landing(OVERVIEW).verdict == Verdict.ALLOW
+
+
+def test_is_submission_candidate_matches_exactly_what_after_would_dispatch():
+    # Direct unit coverage for the predicate discovery.py leans on when a click raises instead of
+    # confirming — it must answer exactly what after() would have done, checked in isolation here,
+    # not only through the full discovery-loop integration test.
+    g = guard("5")
+    g.set_balance("$100.00")
+    submit = click("button", "Transfer")
+    assert g.is_submission_candidate(submit) is False  # not armed yet
+    g.after(type_amount(), TRANSFER, TRANSFER, True, "parameter", "amount")
+    assert g.is_submission_candidate(submit) is True  # armed, a button, not yet submitted
+    assert g.is_submission_candidate(click("link", "Find")) is False  # a link, never a submission
+    g.after(submit, TRANSFER, TRANSFER, True, "other", None)  # a real, successful dispatch
+    assert g.is_submission_candidate(submit) is False  # already submitted
+
+
+def test_mark_possible_dispatch_blocks_a_retry_the_same_way_a_real_dispatch_would():
+    g = guard("5")
+    g.set_balance("$100.00")
+    g.after(type_amount(), TRANSFER, TRANSFER, True, "parameter", "amount")
+    submit = click("button", "Transfer")
+    assert g.is_submission_candidate(submit) is True
+    g.mark_possible_dispatch(submit)  # the click raised instead of confirming
+    assert g.submitted is True
+    retry = g.check(click("button", "Transfer"), TRANSFER, "other", None)
+    assert retry.verdict == Verdict.BLOCK and "already submitted" in retry.reason
