@@ -16,6 +16,7 @@ from cua.adapter import ActionFailed, Candidate, LocatorNotFound, Observation, T
 from cua.config import Config
 from cua.discovery import DiscoveryConfig, run_discovery
 from cua.enums import StopReason
+from cua.escalation import open_ticket
 from cua.evidence import EvidenceLogger, new_run_id
 from cua.goal import GoalSpec, TaggedValues
 from cua.llm import LLMError, LLMResponse
@@ -667,3 +668,159 @@ def test_the_prompt_and_tool_schemas_name_no_pages_or_technical_details():
     for text in (prompt.lower(), tools.lower()):
         for word in ("parabank", "htm", "http", "admin", "jsp", "#", "showresult", "services"):
             assert word not in text, word
+
+
+# -- dispatched, then stuck: discovery's own dispatch_unverified ticket -------------------------
+def test_dispatched_then_stuck_opens_a_ticket_and_marks_the_result_unverified(tmp_path):
+    # The real submit fires, then discovery loses its way immediately afterward — the exact
+    # shape this fix exists for: money may have moved, and nothing here confirms it.
+    script = (
+        read_balance() + open_transfer() + fill() + submit()
+        + [call("report_stuck", reasoning="lost track after the transfer")]
+    )
+    result, site, _, log = run(tmp_path, script, site=FakeSite(path=OVERVIEW))
+    assert site.transfer_clicks == 1  # the dispatch genuinely happened
+    assert (result.stop_reason, result.detail) == (StopReason.DEAD_END, "report_stuck")
+    assert result.side_effects == "unverified"
+    assert len(result.escalations) == 1
+    ticket = result.escalations[0]
+    assert ticket.status == "open" and ticket.run_id == result.run_id
+    assert "DEAD_END" in ticket.reason
+    submission_step = next(s for s in result.steps if s.tool == "click" and s.target.description == "Transfer")
+    assert ticket.step_index == submission_step.step_no
+    assert ticket.step_description == "Transfer"
+    assert ticket.screenshot == submission_step.screenshot
+    # The ticket is a real file, findable the same way any other ticket is, and self-consistent
+    # the same way scripts/audit_evidence.py checks: filename matches the ticket_id inside it.
+    ticket_path = log.dir / f"ticket-{ticket.ticket_id}.json"
+    assert ticket_path.exists()
+    on_disk = json.loads(ticket_path.read_text(encoding="utf-8"))
+    assert on_disk["ticket_id"] == ticket.ticket_id and on_disk["run_id"] == result.run_id
+    meta = json.loads((log.dir / "result.json").read_text(encoding="utf-8"))
+    assert meta["side_effects"] == "unverified"
+
+
+def test_stuck_before_any_dispatch_opens_no_ticket(tmp_path):
+    # The ordinary, low-stakes case must stay exactly as before: nothing moved, nothing to verify.
+    result, _, _, log = run(tmp_path, [call("report_stuck", reasoning="no idea")])
+    assert result.stop_reason == StopReason.DEAD_END
+    assert result.side_effects == "none" and result.escalations == []
+    assert list(log.dir.glob("ticket-*.json")) == []
+    meta = json.loads((log.dir / "result.json").read_text(encoding="utf-8"))
+    assert meta["side_effects"] == "none" and meta["escalations"] == []
+
+
+def test_a_successful_run_opens_no_ticket_but_reports_committed(tmp_path):
+    # Dispatch alone is not the ticket trigger — only dispatch *followed by a failure to reach
+    # SUCCESS* opens one. But a dispatch that SUCCESS then confirms is not "none" either: it
+    # genuinely moved money, so it reports the same "committed" replay would report.
+    result, site, _, log = run(tmp_path, success_script())
+    assert result.stop_reason == StopReason.SUCCESS and site.transfer_clicks == 1
+    assert result.side_effects == "committed" and result.escalations == []
+    assert list(log.dir.glob("ticket-*.json")) == []
+    meta = json.loads((log.dir / "result.json").read_text(encoding="utf-8"))
+    assert meta["side_effects"] == "committed"
+
+
+def test_the_unverified_ticket_carries_a_real_verification_procedure(tmp_path):
+    script = (
+        read_balance() + open_transfer() + fill() + submit()
+        + [call("report_stuck", reasoning="lost track after the transfer")]
+    )
+    result, *_ = run(tmp_path, script, site=FakeSite(path=OVERVIEW))
+    ticket = result.escalations[0]
+    proc = ticket.procedure
+    assert proc is not None
+    assert "acct-a" in proc and "acct-b" in proc  # the real accounts, for the operator only
+    assert "amount=5" not in proc  # amount is reported separately, not folded into "Inputs:"
+    assert "Amount: 5." in proc
+    assert "Balance before the step: 100" in proc  # the balance read earlier in this same run
+    assert "Dispatched at: " in proc and "(UTC)" in proc
+    assert "check the target account's transaction or activity history" in proc.lower()
+
+
+def test_the_saved_ticket_redacts_real_account_numbers_from_its_procedure(tmp_path):
+    # PARAMS elsewhere in this file uses letter accounts ("acct-a"), which the digit-pattern
+    # redactor never touches — that would prove nothing about real redaction. Real ParaBank
+    # accounts are 5-digit numbers (recon-notes.md); this drives open_ticket() directly with that
+    # shape, the same call discovery itself makes, to prove the write path actually redacts it —
+    # independent of whatever the FakeSite harness elsewhere in this file happens to select.
+    redactor = Redactor(Config(), secrets=list(SECRETS.values()))
+    logger = EvidenceLogger(new_run_id(), redactor, base_dir=tmp_path)
+    procedure = (
+        "A money-moving step was clicked during discovery.\n"
+        "Inputs: from_account=10001, to_account=20002.\nAmount: 5.\n"
+        "Balance before the step: 100."
+    )
+    ticket = open_ticket(logger, logger.run_id, 3, "test", procedure=procedure)
+    assert "10001" in ticket.procedure and "20002" in ticket.procedure  # unredacted, in memory
+    on_disk = json.loads((logger.dir / f"ticket-{ticket.ticket_id}.json").read_text(encoding="utf-8"))
+    assert "10001" not in on_disk["procedure"] and "20002" not in on_disk["procedure"]
+    assert "[REDACTED]" in on_disk["procedure"]
+
+
+def test_a_crash_after_dispatch_still_opens_a_ticket(tmp_path):
+    # The crash-labelling rule ("crashed: ...") and the dispatch ticket are orthogonal: a bug in
+    # our own code is still not what a caller needs to hear about first if money already moved.
+    site = FakeSite(path=OVERVIEW)
+    honest_act = site.act
+
+    def crashing(handle, action):
+        if handle.description == "Accounts Overview" and site.transferred:
+            raise RuntimeError("boom")  # a bug in our code, after the real transfer already fired
+        return honest_act(handle, action)
+
+    site.act = crashing
+    script = read_balance() + open_transfer() + fill() + submit() + finish()
+    redactor = Redactor(Config(), secrets=list(SECRETS.values()))
+    logger = EvidenceLogger(new_run_id(), redactor, base_dir=tmp_path)
+    with pytest.raises(RuntimeError, match="boom"):
+        run(tmp_path, script, site=site, logger=logger)
+    meta = json.loads((logger.dir / "result.json").read_text(encoding="utf-8"))
+    assert meta["stop_reason"] == "DEAD_END" and meta["detail"] == "crashed: RuntimeError"
+    assert meta["side_effects"] == "unverified" and len(meta["escalations"]) == 1
+    assert list(logger.dir.glob("ticket-*.json"))  # the ticket is a real file, not just in the result
+
+
+def test_a_click_that_raises_on_the_submission_is_unverified_and_blocks_a_retry(tmp_path):
+    # The request may already be in flight — only LocatorNotFound proves nothing was clicked.
+    # ActionFailed on the one candidate submission click must count as a possible dispatch too,
+    # not "nothing happened, try again" — a retry could double-dispatch if the first one worked.
+    site = FakeSite(path=OVERVIEW)
+    honest_act = site.act
+    raised = {"once": False}
+
+    def flaky(handle, action):
+        if handle.description == "Transfer" and not raised["once"]:
+            raised["once"] = True
+            raise ActionFailed("timeout waiting for a response")
+        return honest_act(handle, action)
+
+    site.act = flaky
+    again = lambda s: call("click", ref=ref(s, "Transfer", True), expect="x")
+    script = read_balance() + open_transfer() + fill() + [
+        submit()[0], again, call("report_stuck", reasoning="stop"),
+    ]
+    result, site, _, log = run(tmp_path, script, site=site)
+    assert site.transfer_clicks == 0  # the retry never reached the site — blocked by the guard
+    assert result.side_effects == "unverified" and len(result.escalations) == 1
+    failed_step = next(s for s in result.steps if s.tool == "click" and s.result == "error")
+    assert result.escalations[0].step_index == failed_step.step_no
+    retry = next(s for s in result.steps if s.result == "blocked" and "already submitted" in (s.error or ""))
+    assert retry is not None
+    ticket_path = log.dir / f"ticket-{result.escalations[0].ticket_id}.json"
+    assert ticket_path.exists()
+
+
+def test_a_dispatch_blocked_by_the_no_resubmit_rule_does_not_reopen_the_ticket(tmp_path):
+    # A second click on Transfer is blocked ("already submitted"), never a second dispatch — the
+    # ticket must trace back to the one real submission, not to the run's last action.
+    again = lambda s: call("click", ref=ref(s, "Transfer", True), expect="x")
+    script = read_balance() + open_transfer() + fill() + submit() + [
+        again, call("report_stuck", reasoning="stop"),
+    ]
+    result, site, _, _ = run(tmp_path, script, site=FakeSite(path=OVERVIEW))
+    assert site.transfer_clicks == 1  # the repeat never reached the site
+    assert result.side_effects == "unverified" and len(result.escalations) == 1
+    submission_step = next(s for s in result.steps if s.tool == "click" and s.target.description == "Transfer")
+    assert result.escalations[0].step_index == submission_step.step_no

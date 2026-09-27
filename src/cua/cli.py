@@ -109,6 +109,8 @@ def _run_live(
     summary = redactor.redact(result.summary())
     detail = f" ({summary['detail']})" if summary["detail"] else ""
     print(f"\nstop reason: {summary['stop_reason']}{detail}")
+    if summary.get("side_effects", "none") != "none":
+        print(f"side_effects: {summary['side_effects']}")
     print(
         f"counted steps: {summary['counted_steps']} | model calls: {summary['llm_calls']} | "
         f"tokens in/out: {summary['input_tokens']}/{summary['output_tokens']} | "
@@ -116,6 +118,16 @@ def _run_live(
     )
     for name, value in summary["outputs"].items():
         print(f"  {name}: {value}")
+    for esc in summary.get("escalations", []):
+        # Discovery never resolves this in-run either — same as replay's dispatch_unverified,
+        # an operator checks the ledger with their own access; nothing here does it for them.
+        print(f"  escalation {esc['ticket_id']}: open, needs manual verification ({esc['reason']})")
+    for esc in result.escalations:
+        if esc.status == "open" and esc.procedure:
+            # Same trust channel as replay's own operator block: real account numbers and amount,
+            # shown on this screen only — the saved ticket is redacted and cannot show them.
+            print("\n  === OPERATOR: verify before any re-run (real values, shown on this screen only) ===")
+            print("\n".join("  " + line for line in esc.procedure.splitlines()))
     if result.stop_reason == StopReason.SUCCESS:
         from cua.compiler import compile_capability
 

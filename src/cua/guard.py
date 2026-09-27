@@ -108,8 +108,25 @@ class ActionGuard:
         elif was_armed and self._is_button(action) and not self.submitted:
             # Only the first button pressed after the amount is the submission. Buttons pressed
             # later (a read-only search, for example) are ordinary and may be pressed again.
-            self.dispatched.add(self._key(action))
-            self.submitted = True
+            self._mark_dispatched(action)
+
+    def is_submission_candidate(self, action: AgentAction) -> bool:
+        """True if this action, were it to succeed right now, would be the dispatch — the same
+        test `after()` uses internally, exposed so a caller can react before knowing the outcome
+        (e.g. the click raised instead of confirming, and the caller still needs to know whether
+        this was possibly the one that moves money)."""
+        return self.armed and self._is_button(action) and not self.submitted
+
+    def mark_possible_dispatch(self, action: AgentAction) -> None:
+        """The submission click raised instead of confirming success: the request may already be
+        in flight, so this counts as dispatched anyway — blocks any retry, same as a real
+        confirmed dispatch would. Only for a genuine action failure; never call this for a locator
+        that was never found, which proves nothing was clicked."""
+        self._mark_dispatched(action)
+
+    def _mark_dispatched(self, action: AgentAction) -> None:
+        self.dispatched.add(self._key(action))
+        self.submitted = True
 
     def landing(self, url: str) -> Decision:
         return self._gate.check(url)

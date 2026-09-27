@@ -1,0 +1,17 @@
+{
+  "ticket_id": "563f9ce9-8e6a-42fb-81de-148f7d21adf3",
+  "run_id": "1ef82656-0f0a-4446-b3c3-0f0b0d2d0dac",
+  "step_index": 14,
+  "reason": "discovery dispatched the submission, then ended DEAD_END without reaching SUCCESS",
+  "status": "open",
+  "decision": null,
+  "captured_human_actions": [],
+  "note": null,
+  "procedure": "A money-moving step was clicked during discovery, and the run did not reach SUCCESS afterward. The action may or may not have posted. Do not re-run this goal until it is verified.\nInputs: from_account=[REDACTED], to_account=[REDACTED].\nAmount: 1.61.\nBalance before the step: 261.21.\nDispatched at: 2026-09-27T22:26:44+00:00 (UTC).\nTo verify: check the target account's transaction or activity history for a transfer matching the amount above, made at or after the dispatch time. If found, no action needed. If not found, the transfer likely did not complete.",
+  "opened_at": "2026-09-27T22:29:50+00:00",
+  "resolved_at": null,
+  "capability": null,
+  "step_description": "button \"Transfer\"",
+  "screenshot": "step-14.png",
+  "operator": null
+}

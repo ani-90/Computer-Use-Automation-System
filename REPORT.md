@@ -68,7 +68,10 @@ A **step** has seven core fields — `precondition`, `action`, `target`, `parame
 that moves money), `best_effort` (a step whose own failure must degrade to a missing output, never crash a run whose
 real work already succeeded). Values may hold `{{placeholders}}`, never a literal account number or amount.
 
-A **locator** is a `description` plus a ranked `chain` of candidates; exactly one match is required to act. A
+A **locator** is a `description` plus a ranked `chain` of candidates; exactly one match is required to act. The
+transfer form's two account dropdowns have no accessible name at all, so position is the only stable key available
+for them — the artifact's one locator without a real fallback chain, on the mandatory path; a renamed or reordered
+form fails there rather than silently misfiring. A
 **condition** is one of ten kinds — page, element, text, form-state, shape — each validated to carry the target/value
 it needs. `error_mapping` lets the artifact declare which visible condition means which business outcome (e.g.
 `invalid_account`), so that mapping is compiler-produced data, not engine logic — the honest exception:
@@ -91,18 +94,26 @@ per-step timeout; checkpoints that assert meaning (a heading's text, a Decimal-c
 engine's fixed per-step loop, and `ReplayResult`. What a caller depends on most is `side_effects`, the retry
 contract: `none` (safe to retry), `unverified` (dispatched, unconfirmed — check the ledger first), `committed`
 (dispatched and confirmed — a later failure must never be "fixed" by re-running the whole capability). It reflects
-what the engine actually did, never which step failed.
+what the engine actually did, never which step failed. Discovery carries the same contract on `DiscoveryResult`,
+because it dispatches the same real action to learn what success looks like — a discovery run that dispatched and
+then failed to reach `SUCCESS` is `unverified` too, with its own ticket; see heading 5.
 
 **Runtime errors, per step:** precondition false means drift, wrong state, or an expired session; a checkpoint/action
 failure checks `error_mapping` first, else falls to `HARD_FAILURE`/`RECOVERABLE`. An expired session is
 auto-recovered in place — re-login, retry the failed step, once, no human — for every step except the money-moving
-one, so a caller only sees terminal `RECOVERABLE` if that retry also fails.
+one, so a caller only sees terminal `RECOVERABLE` if that retry also fails. This lands correctly only where a step's
+own precondition is satisfied by nothing more than being freshly logged in — true at the first step, since re-login
+always returns to the same page — not guaranteed deeper into the flow, where a precondition expects form state a
+login alone doesn't restore; resuming mid-flow is a real, named scope boundary, not an oversight.
 
 **The irreversible-action rule**, the sharpest edge in the design: once `is_submission` is dispatched, the engine
 never clicks it again — no probe, no re-login, no retry. It waits 60s; if confirmation still doesn't verify, that's
 `HARD_FAILURE` / `dispatch_unverified` with an open ticket. A raised error counts the same as a missing confirmation
 (the request may already be in flight) — only "element not found" proves nothing was clicked. If a human types
-`reject` (or times out) after actually clicking Transfer, the engine trusts the page, not the word.
+`reject` (or times out) after actually clicking Transfer, the engine trusts the page, not the word. `is_submission`
+steps use this fixed 60-second window regardless of the artifact: every step's `wait_strategy.timeout_ms` is
+uniformly 10s (the schema default), and the engine overrides it for this one step only, on purpose — a false
+escalation on the one irreversible action is worse than waiting longer.
 
 **Amount validation** happens before the browser opens, identically on the CLI, engine and HTTP: malformed input is
 `HARD_FAILURE` (a contract violation — the request cannot be evaluated, distinct from a policy refusal of a
@@ -132,13 +143,16 @@ checkpoint or locator resolution — a classified `HARD_FAILURE`, never silently
 discovery for that one tenant and compile a tenant-scoped artifact, still carrying its own `created_from`. The cost
 of divergence is per drifting tenant, not a fixed subsystem paid up front.
 
-**The variant spectrum.** Minor branding differences (labels change, vendor IDs underneath usually survive) are
-absorbed by the locator fallback chain itself; a step that genuinely drifts is fixed by a per-tenant override of that
-step, not a re-record; only genuine flow divergence gets a fresh discovery run for that tenant. A **drift canary**
-(periodically resolving an artifact's checkpoint targets without acting — a read-only health check) would tell you
-which case you're in before a real invocation fails; not built. **Onboarding economics:** because the discovery
-prompt is app-agnostic, the marginal cost of a new tenant is one discovery run plus one artifact review — engineering
-time becomes operational cost.
+**The variant spectrum.** A locator's fallback chain absorbs *markup* differences — the same label found a different
+way — not a label change itself: every candidate in a chain is built from that same label, so a rename breaks the
+whole chain at once. That case routes to a **per-tenant override**: one locator swapped in for one step, keyed by
+the step's position, merged in only at replay time, never touching the shared artifact — valid exactly as long as
+the flow's shape is unchanged. The boundary test: if a tenant's flow ever needs `is_submission` itself to sit on a
+different step — an inserted review page, say — no override can express that; it's the signal for the fresh-discovery
+path above, not a bigger override format. A **drift canary** (periodically resolving an artifact's checkpoint targets
+without acting — a read-only health check) would tell you which case you're in before a real invocation fails; not
+built. **Onboarding economics:** because the discovery prompt is app-agnostic, the marginal cost of a new tenant is
+one discovery run plus one artifact review — engineering time becomes operational cost.
 
 **Legacy web and desktop:** the engine, schema and outcome taxonomy touch the adapter only through four methods. A
 desktop adapter implementing the same four over an accessibility tree (or a vision-based fallback) needs no change
@@ -148,11 +162,11 @@ implement against.
 
 ## 5. Escalation & handoff
 
-**Two named triggers**, not a per-outcome dictionary: an amount over `approval_threshold` (a normal, foreseeable
-decision), and a dispatched money-moving click whose confirmation never verifies (the one place a run might have
-already changed the world and the engine can't tell). Every other failure returns a structured result and pages
-nobody. "Stuck" is detected the same way in both cases — a checkpoint that won't become true within its wait — but
-what happens next differs.
+**Two named triggers on replay**, not a per-outcome dictionary: an amount over `approval_threshold` (a normal,
+foreseeable decision), and a dispatched money-moving click whose confirmation never verifies (the one place a run
+might have already changed the world and the engine can't tell). Every other failure returns a structured result
+and pages nobody. "Stuck" is detected the same way in both cases — a checkpoint that won't become true within its
+wait — but what happens next differs.
 
 **Trigger 1, live handoff:** `session_owner` (`agent`|`human`) gates every action. The engine opens a ticket, hands
 the live browser to a human, and waits up to a fixed timeout (60s in the CLI) for a decision; the human's actual
@@ -164,6 +178,17 @@ let a human retry would mean re-clicking an action that may have already gone th
 ticket with a verification procedure built from the artifact's own best-effort lookup steps (real inputs, balance
 beforehand; the engine names no page of any app) and returns `HARD_FAILURE` / `dispatch_unverified`. The operator
 checks the real ledger and decides whether to re-run.
+
+**Discovery shares trigger 2, because it shares the risk.** Discovery has to dispatch the real money-moving action
+to learn what success looks like — there is no artifact yet, so no `is_submission` flag exists to lean on, but the
+same shape of risk exists: a real click, followed by a run that never confirms it. The engine tracks this itself,
+live — the same first-button-after-the-amount signal the compiler later turns into `is_submission` — and treats it
+identically: no re-click, no silent "safe to re-run." If the run ends anything but `SUCCESS` after that dispatch, it
+opens the same ticket machinery, with `side_effects: "unverified"` on the result. A raised error on that one click
+counts the same as a missing confirmation would — only "element not found" proves nothing was clicked, matching
+replay's own rule exactly. Live-verified: a run given one extra, deliberately unsatisfiable requirement dispatched a
+real transfer, confirmed it, then correctly failed to finish — and opened a real ticket pointing at the real step,
+with a real screenshot (`evidence/by-outcome/discovery/DEAD_END_dispatch_unverified/`).
 
 **Trust surfaces stay separate:** a ticket is always written redacted. The CLI prints the real, unredacted procedure
 to the operator's terminal only, never to a file. Over HTTP the caller gets `ticket_id`/`run_id` but never
@@ -211,12 +236,19 @@ on sub-cent digits). The allowlist is fixed per capability, not learned. These g
 - **A tenant profile as a first-class concept** — designed for (heading 4), not implemented.
 - **Input constraints and `locator_rationale`** on the schema.
 - **A second adapter** (accessibility-tree or vision-based) — argued for, not built.
+- **A uniqueness guard on the `transaction_id` lookup** — correctness of the newest-match pick (`nth: -1`) rests on
+  ParaBank's verified oldest-first ordering, with no redundant check confirming only one match exists; a
+  compiler-emitted guard that degrades to `None` on ambiguity, instead of trusting position alone, is the designed
+  next step.
+- **Known-dialog dismissal** — an unexpected pop-up mid-flow is never silently clicked past; it fails as a classified
+  `HARD_FAILURE` at the exact step, coarse but safe. A whitelist of dismissible patterns is the next robustness
+  build, not attempted here since no live run has ever hit one.
 
 **Next, in order:** the tenant profile (smallest change, largest generalization payoff); in-run resume for the
 dispatch-unverified trigger; a second adapter, as the real test of the four-method boundary.
 
 **Untested edges, named honestly:** amounts of $1000+ (needs a source balance over $1000 and a live supervisor
 click; a thousands separator on the confirmation would surface as a flagged `dispatch_unverified`, never a silent
-error); session expiry after step 0 (recovery only proven live at the first step); a terminal `RECOVERABLE` where
+error); session expiry deeper than step 0 (the scope boundary §3 names; only the first-step case is proven live); a terminal `RECOVERABLE` where
 the one retry also fails (unit-tested, not live); a failure after a transfer is already confirmed (tested against a
 fake bank double, since deliberately breaking a shared sandbox live isn't safe).

@@ -5,7 +5,7 @@ from typing import Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from cua.enums import StopReason, Verdict
-from cua.models import Condition, Locator
+from cua.models import Condition, Escalation, Locator, SideEffects
 
 
 class _Model(BaseModel):
@@ -90,6 +90,14 @@ class DiscoveryResult(_Model):
     elapsed_seconds: float = 0.0
     max_steps: int = 30  # the limits this run was allowed, so a result is honest about its bound
     timeout_s: float = 300.0
+    # The same retry contract Replay carries (see SideEffects): "unverified" means discovery
+    # dispatched the one submission action (the first button pressed after the tagged amount was
+    # typed) and then did not reach SUCCESS afterward — money may have moved and nothing
+    # confirmed it; a ticket opens (see DiscoveryRun._result). "committed" means the dispatch
+    # happened and SUCCESS is exactly what confirmed it — never retry the whole goal again on a
+    # later, unrelated failure. "none" means no dispatch happened at all, safe to just re-run.
+    side_effects: SideEffects = "none"
+    escalations: list[Escalation] = Field(default_factory=list)
 
     def summary(self) -> dict:
         data = self.model_dump(mode="json", exclude={"steps"})
