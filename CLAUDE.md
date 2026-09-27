@@ -5,7 +5,7 @@ compiled into a versioned `capability.json`; a deterministic Replay Engine (no L
 Target app: self-hosted ParaBank (Docker). Single goal: log in, transfer funds between two accounts,
 confirm, read the new balance.
 
-## Progress (updated 2026-09-26)
+## Progress (updated 2026-09-28)
 Phases 0-8 are built, live-tested against the real ParaBank instance, and merged to `main` (each phase's
 own branch is kept, not deleted, as history). That covers the whole core thesis: discover once (LLM) -> compile ->
 replay deterministically -> classify every outcome -> escalate to a human when policy requires it -> recover on its own
@@ -18,21 +18,32 @@ test, and compiler fixes found by live discovery runs. Live-verified from the CL
 the agent (8 runs). Not built from the original Phase 9 idea: the `drop_response` fault, a live browser handoff with
 in-run resume (`complete` / `retry_step` / `abort`), and engine-side balance reconciliation. Those are named cuts.
 
+Phase 9b, branch `phase-9b-discovery-dispatch-ticket` (merged to `main`): discovery shares the same risk replay's
+dispatch_unverified trigger exists for — it has to dispatch the real money-moving action to learn what success looks
+like, so it now carries the same retry contract. `DiscoveryResult` gained `side_effects` (`"unverified"` if a run
+dispatched and did not reach `SUCCESS`, `"committed"` if it did) and `escalations`; a raised `ActionFailed` on the one
+candidate submission click counts as a possible dispatch too, blocking any retry, matching replay's "only
+element-not-found proves nothing was clicked" rule exactly. Live-verified: a run given one extra, deliberately
+unsatisfiable requirement dispatched a real transfer, confirmed it, then correctly failed to finish and opened a real
+ticket (`evidence/by-outcome/discovery/DEAD_END_dispatch_unverified/`).
+
 Evidence: curated, reviewed, and audited. `evidence/by-outcome/replay/` holds 23 replay runs (one folder per
 scenario, named by outcome, including the same scenarios over HTTP), `evidence/by-outcome/discovery/` one run per
-discovery stop reason (its `SUCCESS` is the run the committed artifact was compiled from), `evidence/agent_demo/` eight
-redacted transcripts. Raw run folders are NOT committed. `python scripts/audit_evidence.py --tracked` passes with 0
-problems and 0 warnings: every run's `run_id` agrees across its files and with its README's `Source run:`, and the
-artifact's `created_from` resolves to a discovery run present in the evidence.
+discovery stop reason plus `DEAD_END_dispatch_unverified` (its `SUCCESS` is the run the committed artifact was
+compiled from), `evidence/agent_demo/` eight redacted transcripts. Raw run folders are NOT committed.
+`python scripts/audit_evidence.py --tracked` passes with 0 problems and 0 warnings (29 folders/artifacts): every
+run's `run_id` agrees across its files and with its README's `Source run:`, and the artifact's `created_from`
+resolves to a discovery run present in the evidence.
 
 Untested edges, named honestly: amounts of $1000 or more (a source balance over $1000 and a supervisor's click are
 needed; if ParaBank printed a thousands separator the exact-text confirmation check would not match, which would surface
 as a flagged `dispatch_unverified`, not a silent error), and session expiry after step 0 (recovery only lands correctly
 at step 0 live; see `replay.py`'s module docstring).
 
-Phase 10 (deliverables): `README.md` is written (setup, discover, replay, agent path, evidence, known limits) and a
-fresh-clone software check passed (439 tests, ruff, audit clean, no `.env` needed). Not done: `REPORT.md` with the 7
-fixed headings (to be discussed before writing; the README links to it).
+Phase 10 (deliverables): `README.md` and `REPORT.md` (7 fixed headings) are both written; a fresh-clone software
+check passed (now 447 tests, ruff, audit clean, no `.env` needed). Not done: Linux CI (`.github/workflows` does not
+exist — tested on Windows only), and fresh-clone Part 2 (an actual live run from a fresh clone, not just the software
+checks).
 
 ## Source of truth
 The design docs live outside the repo (the user's Downloads folder): `approach_4.md` (what to build),

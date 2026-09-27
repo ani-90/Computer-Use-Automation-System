@@ -55,9 +55,9 @@ The runs below move real money inside this sandbox. If you need a clean slate, r
 ## 3. Check the install (no ParaBank, no API key)
 
 ```bash
-pytest                                      # 439 tests
+pytest                                      # 447 tests
 ruff check .
-python scripts/audit_evidence.py --tracked  # every run_id in the committed evidence agrees: 28 clean, 0 problems
+python scripts/audit_evidence.py --tracked  # every run_id in the committed evidence agrees: 29 clean, 0 problems
 ```
 
 ## 4. Discover (once, costs about $0.35)
@@ -71,6 +71,11 @@ The agent gets only the goal, never a page name or selector. On `SUCCESS` the co
 `--capability-out`. Without that flag it **overwrites** `capabilities/transfer_funds.json`, the committed artifact. Use a
 two-decimal amount you have not transferred before, so the ledger search has exactly one match. A run that ends
 `DEAD_END`, `MAX_STEPS_EXCEEDED` or `TIMEOUT` writes no artifact. Its evidence goes to `evidence/<run_id>/`.
+
+Discovery moves real money too — it has to, to observe what success looks like — so it carries the same retry
+contract replay does. If a run dispatches the real transfer and then still doesn't reach `SUCCESS`, it prints
+`side_effects: unverified` and opens a ticket (same machinery as replay's `dispatch_unverified`), with the real
+verification procedure shown to your terminal only. A run that reaches `SUCCESS` prints `side_effects: committed`.
 
 ## 5. The artifact
 
