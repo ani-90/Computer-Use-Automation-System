@@ -55,7 +55,7 @@ The runs below move real money inside this sandbox. If you need a clean slate, r
 ## 3. Check the install (no ParaBank, no API key)
 
 ```bash
-pytest                                      # 447 tests
+pytest                                      # 449 tests
 ruff check .
 python scripts/audit_evidence.py --tracked  # every run_id in the committed evidence agrees: 30 clean, 0 problems
 ```

@@ -42,7 +42,7 @@ as a flagged `dispatch_unverified`, not a silent error), and session expiry afte
 at step 0 live; see `replay.py`'s module docstring).
 
 Phase 10 (deliverables): `README.md` and `REPORT.md` (7 fixed headings) are both written; a fresh-clone software
-check passed (now 447 tests, ruff, audit clean, no `.env` needed). Not done: Linux CI (`.github/workflows` does not
+check passed (now 449 tests, ruff, audit clean, no `.env` needed). Not done: Linux CI (`.github/workflows` does not
 exist — tested on Windows only), and fresh-clone Part 2 (an actual live run from a fresh clone, not just the software
 checks).
 
