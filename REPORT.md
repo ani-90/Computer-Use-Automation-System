@@ -77,15 +77,31 @@ An artifact (`Capability` -> `Step` -> `Locator`/`Condition` -> `LocatorCandidat
 strictly-validated JSON document (`capabilities/transfer_funds.json`, 15 steps); every model rejects unknown fields,
 so a malformed artifact fails at load, not mid-run.
 
-`schema_version` (the format) and `version` (this instance) are versioned separately. `inputs`/`outputs` are typed
-and also source the HTTP tool schema — the schema *is* the API. `amount_input` names which input the amount rules
-apply to (optional, since not every capability moves money); `distinct_inputs` lists input groups that must differ;
-`created_from` is the discovery run's `run_id`, checked by `scripts/audit_evidence.py`.
+**Capability-level fields**
 
-A **step** has seven core fields — `precondition`, `action`, `target`, `parameters`, `wait_strategy`, `checkpoint`,
-`error_mapping` — plus three purpose flags: `extract_as` (which output a value fills), `is_submission` (the one step
-that moves money), `best_effort` (a step whose own failure must degrade to a missing output, never crash a run whose
-real work already succeeded). Values may hold `{{placeholders}}`, never a literal account number or amount.
+| Field | What it's for |
+| --- | --- |
+| `schema_version` / `version` | the format vs. this instance — versioned separately; `version: "2"` marks money-typed placeholders |
+| `inputs` / `outputs` | typed; also source the HTTP tool schema — the schema *is* the API |
+| `amount_input` | which input the amount rules apply to (optional — not every capability moves money) |
+| `distinct_inputs` | input groups that must differ, e.g. `[["from_account","to_account"]]` |
+| `created_from` | the discovery run's `run_id`, checked by `scripts/audit_evidence.py` |
+
+**Step-level fields** — seven core, plus three purpose flags added only when a real need arose. Values may hold
+`{{placeholders}}`, never a literal account number or amount.
+
+| Field | What it's for |
+| --- | --- |
+| `precondition` | must hold before the step acts |
+| `action` | click / type / select / navigate / extract |
+| `target` | the locator (below) |
+| `parameters` | the values to use |
+| `wait_strategy` | how the step knows it took effect |
+| `checkpoint` | must hold after the step acts |
+| `error_mapping` | which visible condition means which business outcome |
+| `extract_as` | which declared output this value fills |
+| `is_submission` | true on exactly one step: the one that moves money |
+| `best_effort` | a step whose own failure degrades to a missing output, never crashes a run whose real work already succeeded |
 
 A **locator** is a `description` plus a ranked `chain` of candidates; exactly one match is required to act. The
 transfer form's two account dropdowns have no accessible name at all, so position is the only stable key available
