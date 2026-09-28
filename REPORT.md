@@ -73,9 +73,15 @@ five-decimal amount, move the unrounded value, and show a balance it could never
 
 ## 2. Artifact schema
 
-An artifact (`Capability` -> `Step` -> `Locator`/`Condition` -> `LocatorCandidate`, `src/cua/models.py`) is one
-strictly-validated JSON document (`capabilities/transfer_funds.json`, 15 steps); every model rejects unknown fields,
-so a malformed artifact fails at load, not mid-run.
+An artifact is one JSON document — the compiled, versioned description of a flow, never hand-written
+(`capabilities/transfer_funds.json`, 15 steps). Every field is validated against a strict schema (`src/cua/models.py`);
+an unknown field is rejected, so a malformed artifact fails at load, not mid-run.
+
+Four nested types make up the schema:
+- **Capability** — the whole artifact
+  - **Step** — one action in the flow
+    - **Locator** / **Condition** — what to act on, or what must be true
+      - **LocatorCandidate** — one way to find that element, ranked in a fallback chain
 
 **Capability-level fields**
 
