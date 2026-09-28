@@ -43,9 +43,24 @@ transaction-processing work back-office bank staff actually do. One fixed servic
 per-customer login — is the real back-office authentication model, demonstrated here against a customer-facing app.
 Login is a prelude, not a recorded step:
 authentication is session-layer infrastructure — the artifact carries zero auth, and in production login would itself
-be a discovered, per-app session capability. The agent-facing surface (`src/cua/api.py`) exposes the catalog and
-typed invocation; the demo shows a model emitting a tool call and the capability executing deterministically.
-Production shape: async (job + ticket + webhook), authenticated, idempotent.
+be a discovered, per-app session capability.
+
+**The agent-facing capability interface (stretch-goal implementation).**
+
+**What it is:** invokes the `transfer_funds` capability as a tool (tool name: `transfer_funds`). Once the tool is
+invoked, the real, deterministic engine carries out the task — no LLM involved in actually doing it, only in
+deciding to call it.
+
+**What it can do:** list the available capability and what inputs it needs (a catalog); accept a real, typed call
+with real values (`from_account`, `to_account`, `amount`); run it through the same replay engine. Demonstrated with
+8 real, curated runs — a plain success, a decimal amount, an invalid account on either side, too many decimals in
+amount, the same account twice, and a lost confirmation opening a ticket.
+
+**What it cannot do (yet):** the caller waits for the whole thing to finish instead of getting a tracking number
+back immediately. There's no login or API key — anyone reaching the address can call it. Calling the same request
+twice isn't detected, so a network retry could resend a transfer. And there's no human escalation over this
+interface at all — an amount over the approval threshold just gets blocked here (`POLICY_BLOCK`), since there's no
+live browser to hand off to anyone remotely.
 
 **The engine's own decisions:** only `PlaywrightAdapter` imports Playwright; everything else calls four adapter
 methods plus a handful of explicitly-approved extensions added only when a real need arose — what makes the engine
