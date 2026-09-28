@@ -238,27 +238,38 @@ values), a screenshot, and — via `CUA_OPERATOR` — who acted on it.
 
 ## 6. Safety
 
-**Three guardrail layers, same order, every action, in both Discovery and Replay:** a **path allowlist** (only the
-pages the flow needs; `/parabank/services/*` and the Admin Page are denied, only the rendered UI is ever driven);
-**ordered amount rules** (`<=0` blocks, `>balance` blocks, `>threshold` escalates); the **irreversible-action rule**
-(once dispatched, a money-moving step is never retried or re-clicked).
+**Three guardrail layers, same order, every action, in both Discovery and Replay:**
 
-**Why block, escalate, and never flag.** The two hard rules block because no decision exists to defer — no supervisor
-should be able to authorize an overdraft or a negative amount, and recon proved the app itself enforces neither (see
-`recon-notes.md`: no overdraft protection, accounts can go negative), so the gate is the only protection. The
-threshold escalates because it's a genuine authorization judgment — auto-approving defeats having a threshold,
-auto-blocking refuses legitimate affordable requests. Flag-and-proceed is rejected outright: proceeding after
-detecting a violation defeats the point of detecting it. On timeout: silence is not consent — no answer is a refusal,
-never an approval.
+| Layer | What it does |
+| --- | --- |
+| Path allowlist | only the pages the flow needs; `/parabank/services/*` and the Admin Page are denied; only the rendered UI is ever driven |
+| Ordered amount rules | `≤0` blocks, `>balance` blocks, `>threshold` escalates |
+| Irreversible-action rule | once dispatched, a money-moving step is never retried or re-clicked |
+
+**Why block & escalate, but never flag & proceed:**
+- **The two hard rules block because there's no decision to defer to anyone** — no supervisor should ever be allowed
+  to authorize an overdraft or a negative amount. And this isn't hypothetical: recon proved live that the app itself
+  enforces neither (`recon-notes.md`: no overdraft protection, accounts can go negative). The gate is the only
+  protection that exists.
+- **The threshold escalates**, not blocks or auto-approves, because it's a genuine authorization judgment —
+  auto-approving defeats having a threshold; auto-blocking refuses legitimate, affordable requests.
+- **Flag-and-proceed is rejected outright**: proceeding after detecting a violation defeats the point of detecting it.
+- **On timeout, silence is not consent** — no answer is a refusal, never an approval.
 
 **Data handling:** no credentials ever enter an artifact, log, or result — the service-account login comes only from
 `.env`. Redaction happens at the write boundary: a generic pattern (`\b\d{5,12}\b`) masks account-number-shaped runs,
 with one deliberate exception — `run_id`/`ticket_id`, our own correlation IDs, never customer data (a UUID segment
-that happens to be all-digits was found live to be mangled otherwise; fixed in the redactor). Three trust surfaces
-are handled differently on purpose: the operator's terminal sees real values; the HTTP caller sees IDs and
-`side_effects` but never a raw value or procedure; persisted evidence is always redacted. Discovery's prompt states
-only the goal, never a page name or element ID, so the guardrails aren't something the agent could route around by
-being told where things are.
+that happens to be all-digits was found live to be mangled otherwise; fixed in the redactor). Discovery's prompt
+states only the goal, never a page name or element ID, so the guardrails aren't something the agent could route
+around by being told where things are.
+
+**Three trust surfaces, handled differently on purpose:**
+
+| Surface | Sees |
+| --- | --- |
+| Operator's terminal | real values |
+| HTTP caller | IDs and `side_effects` — never a raw value or procedure |
+| Persisted evidence | always redacted |
 
 **Limits:** redaction is pattern-based, not structural — it reasons about shape, not meaning (hence a cosmetic quirk
 on sub-cent digits). The allowlist is fixed per capability, not learned. These guarantees hold only as far as
