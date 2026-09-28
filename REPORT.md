@@ -38,8 +38,8 @@ surface, locally controlled so an evaluator's rerun can't fail on a shared insta
 customer self-service portal, not a staff tool, so the demo collapses the service-account and customer roles into
 one login. The design — the service account authenticating as itself, the customer traveling as data, never as a
 login — targets the real staff-tool environment regardless. The app is the stand-in; the task and the access
-pattern are not: "transfer funds, confirm it posted, get a durable reference" is exactly the transaction-processing
-work the brief itself describes bank staff doing. One fixed service account acting on customer data — never a
+pattern are not: "transfer funds, confirm it posted, get a durable reference" is exactly the kind of
+transaction-processing work back-office bank staff actually do. One fixed service account acting on customer data — never a
 per-customer login — is the real back-office authentication model, demonstrated here against a customer-facing app.
 Login is a prelude, not a recorded step:
 authentication is session-layer infrastructure — the artifact carries zero auth, and in production login would itself
