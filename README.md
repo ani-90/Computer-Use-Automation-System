@@ -69,8 +69,9 @@ python -m cua.cli discover --param from_account=<FROM> --param to_account=<TO> -
 ```
 The agent gets only the goal, never a page name or selector. On `SUCCESS` the compiler writes the artifact to
 `--capability-out`. Without that flag it **overwrites** `capabilities/transfer_funds.json`, the committed artifact. Use a
-two-decimal amount you have not transferred before, so the ledger search has exactly one match. A run that ends
-`DEAD_END`, `MAX_STEPS_EXCEEDED` or `TIMEOUT` writes no artifact. Its evidence goes to `evidence/<run_id>/`.
+two-decimal amount you have not transferred before (e.g. `1.51`, `1.52`, ...), so the ledger search has exactly one
+match. Every discovery run's evidence goes to `evidence/<run_id>/`, whatever the outcome; a run that ends
+`DEAD_END`, `MAX_STEPS_EXCEEDED` or `TIMEOUT` additionally writes no artifact.
 
 Replay the artifact you just discovered (free, no LLM):
 ```bash
@@ -128,7 +129,7 @@ Change the inputs to see each outcome:
 | `amount=9000` | `POLICY_BLOCK`, amount exceeds balance, Transfer never clicked |
 | `amount=1.98484` | `POLICY_BLOCK`, more than 2 decimal places, before any browser opens |
 | `from_account` = `to_account` | `POLICY_BLOCK`, must be different |
-| `amount=101` | over the approval threshold (100): the browser is handed to you. Click **Transfer** yourself, then press Enter, to approve; type `reject` to decline; no answer in 60s is a `POLICY_BLOCK` (timeout) |
+| `amount=101` | over the approval threshold (100): the browser is handed to you. Click **Transfer** yourself, then return to your terminal and press Enter to approve; type `reject` there to decline; no answer in 60s is a `POLICY_BLOCK` (timeout) |
 | a wrong `PARABANK_PASSWORD` for one run | `BUSINESS_OUTCOME` / `login_rejected` |
 
 For example, a wrong password for one run (`load_dotenv` never overrides a variable that is already set):
@@ -145,7 +146,8 @@ A real session expiry, auto-recovered (`SUCCESS`, with a `recovered` step in the
 ```bash
 python -m cua.cli replay --capability capabilities/transfer_funds.json --param from_account=<FROM> --param to_account=<TO> --param amount=5 --inject-faults --fault-step 0 --fault-type clear_session
 ```
-A Transfer request held for 90 seconds (`HARD_FAILURE` / `dispatch_unverified`, `side_effects: unverified`, an open ticket; about 3 minutes):
+A Transfer request held for 90 seconds, plus the engine's own 60s confirmation wait on top of that once the hold
+ends — about 3 minutes total (`HARD_FAILURE` / `dispatch_unverified`, `side_effects: unverified`, an open ticket):
 ```bash
 python -m cua.cli replay --capability capabilities/transfer_funds.json --param from_account=<FROM> --param to_account=<TO> --param amount=5 --inject-faults --fault-step 5 --fault-type transient_fail --fault-url-pattern "**/*transfer*" --fault-delay-ms 90000
 ```
