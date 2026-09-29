@@ -29,8 +29,9 @@ Every run: `llm_calls: 0`. The Replay Engine has no LLM client.
 - `HARD_FAILURE_dispatch_unverified/` - Transfer clicked, confirmation never seen: waits 60s, never clicks again, opens a ticket
 - `HARD_FAILURE_malformed_amount/` - not a number, rejected before the browser opens
 
-The same scenarios run through the agent-facing HTTP interface (the stretch goal) live separately in
-[`../agent_facing/`](../agent_facing/), not mixed in here — see its own README.
+A subset of these scenarios, run through the agent-facing HTTP interface (the stretch goal) instead of the CLI,
+live separately in [`../agent_facing/`](../agent_facing/) — not mixed in here; see its own README for which ones
+and why.
 
 **Gaps, noted honestly rather than papered over**
 - No folder for a *terminal* `RECOVERABLE` outcome. Every `clear_session` fault was auto-recovered on its one retry, so a
