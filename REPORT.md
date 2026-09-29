@@ -318,8 +318,10 @@ The following items were deliberately left out, each for a specific reason:
   the balance shown after a transfer is trusted as-is, with nothing recalculating what it should be and comparing;
   and the transaction ID lookup trusts its own best guess at which record is correct, with nothing stopping to ask
   for confirmation if more than one match is possible. Both would add real protection. Both also cost something
-  real to build — the second one specifically means recompiling the artifact, which carries its own risk. Since
-  neither problem has ever actually occurred, both were left as-is. A related but smaller item — writing basic
+  real to build: the first means new engine logic to decide what actually counts as a mismatch and what outcome
+  it should produce, tested against a condition that's never once been observed; the second specifically means
+  recompiling the artifact, which carries its own risk. Since neither problem has ever actually occurred, both
+  were left as-is. A related but smaller item — writing basic
   rules for each input, and the reasoning behind each locator choice, directly into the schema — was also skipped,
   but that's just missing documentation, not a missing safety check.
 - **Resuming a run once an uncertain transfer's real outcome is known** — space for this was already designed into
