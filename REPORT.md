@@ -321,9 +321,7 @@ The following items were deliberately left out, each for a specific reason:
   real to build: the first means new engine logic to decide what actually counts as a mismatch and what outcome
   it should produce, tested against a condition that's never once been observed; the second specifically means
   recompiling the artifact, which carries its own risk. Since neither problem has ever actually occurred, both
-  were left as-is. A related but smaller item — writing basic
-  rules for each input, and the reasoning behind each locator choice, directly into the schema — was also skipped,
-  but that's just missing documentation, not a missing safety check.
+  were left as-is.
 - **Resuming a run once an uncertain transfer's real outcome is known** — space for this was already designed into
   the schema, just never wired up; see the implementation plan below for what it would involve.
 
