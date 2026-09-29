@@ -13,7 +13,8 @@ Design write-up: [`REPORT.md`](REPORT.md). Evidence and how it is audited: [`evi
 
 - Python 3.11 or newer, and Docker (for ParaBank).
 - An Anthropic API key, only for **discovery** and the **agent demo**. Replay never calls an LLM.
-- A display. The browser is always headed (by design, so a person can take over). The tests need no browser or display.
+- A display, for running discover/replay against a live browser (it's always headed, by design, so a person can take
+  over) — not needed just to run the test suite.
 
 ## 1. Set up
 
@@ -36,7 +37,8 @@ pip install -e ".[dev]"
 playwright install chromium
 cp .env.example .env
 ```
-Then edit `.env`: set `PARABANK_PASSWORD` (any password you choose in step 2) and, for discovery, `ANTHROPIC_API_KEY`.
+Then edit `.env`: set `PARABANK_PASSWORD` (any password you choose — you'll use it to register in section 2 below)
+and, for discovery, `ANTHROPIC_API_KEY`.
 Run every command below from the repository root.
 
 ## 2. Start ParaBank
@@ -163,16 +165,16 @@ An HTTP service exposes the capability as a tool an agent can discover and call:
 python -m uvicorn cua.api:app --port 8000                                              # terminal 1
 python scripts/agent_demo.py "transfer 5 dollars from account <FROM> to account <TO>"  # terminal 2
 ```
-`GET /capabilities` lists the tool schema; `POST /capabilities/transfer_funds/invoke` runs it. There is no human callback
+`GET /capabilities` lists the tool schema; `POST /capabilities/transfer_funds/invoke` runs the capability. There is no human callback
 over HTTP, so an amount over the threshold is a `POLICY_BLOCK` there. The demo has no authentication and runs
 synchronously. See `REPORT.md` for how a production version would differ.
 
 ## 8. Evidence
 
 [`evidence/README.md`](evidence/README.md) is the map. Start with `evidence/by-outcome/replay/SUCCESS/` and
-`evidence/by-outcome/discovery/SUCCESS/`. There are 16 replay runs via the CLI (each scenario above), 8 more via the
-agent-facing HTTP interface in `evidence/by-outcome/agent_facing/`, and 8 agent transcripts, all with a README
-naming the run it came from.
+`evidence/by-outcome/discovery/SUCCESS/`. There are 16 replay runs via the CLI (the scenarios above, plus additional
+fault-injection and escalation variants), 8 more via the agent-facing HTTP interface in
+`evidence/by-outcome/agent_facing/`, and 8 agent transcripts, all with a README naming the run it came from.
 `python scripts/audit_evidence.py --tracked` re-checks the whole tree.
 
 ## Known limits
@@ -180,6 +182,6 @@ naming the run it came from.
 - Tested on Windows only; the commands are given for bash as well, but not run there.
 - Amounts of $1000 or more were not run. If ParaBank printed a thousands separator on the confirmation, the exact-text
   check would not match, and the result would be a flagged `dispatch_unverified`, not a silent error.
-- Session recovery lands correctly at the first step only.
+- Session recovery lands correctly only at the artifact's first step (step 0).
 - One flow on one app. The HTTP service has no authentication or idempotency key.
 - Not built: a live browser handoff with in-run resume for an unverified dispatch, and the `drop_response` fault.

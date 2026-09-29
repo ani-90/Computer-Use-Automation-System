@@ -24,10 +24,10 @@ happened, what was returned, and whether it is safe to try again.
 Evidence is written as it happens, not after. Every run — success, failure, or escalation — streams a step log and
 a transcript to its own `run_id`-keyed folder while it executes, so the step log and every screenshot survive even
 a crash mid-run: what the agent saw and did, and what the page looked like at each step. The final structured
-result is written once, when the run concludes; only a genuine crash before that point would leave it missing. Two
-files are deliberately separate: the transcript (full, uncompressed, what the model actually saw and said) and the
-compiled artifact (the clean, reviewed capability). The first is for debugging and audit; the second is the
-product. They never merge. Redaction happens at the write boundary — account-number-shaped values are masked
+result is written once, when the run concludes; only a genuine crash before that point would leave it missing. The
+transcript and the compiled artifact stay deliberately separate from each other: the transcript (full, uncompressed,
+what the model actually saw and said) is for debugging and audit, the compiled artifact (the clean, reviewed
+capability) is the product. They never merge. Redaction happens at the write boundary — account-number-shaped values are masked
 before anything touches disk — so no run's evidence can ever hold what the caller's inputs held. A script audits
 the committed evidence tree: every `run_id` in every file matches the run its folder claims to be.
 
@@ -62,8 +62,8 @@ interface at all — an amount over the approval threshold just gets blocked her
 live browser to hand off to anyone remotely.
 
 **The engine's own decisions:** only `PlaywrightAdapter` imports Playwright; everything else calls four adapter
-methods plus a handful of explicitly-approved extensions added only when a real need arose — what makes the engine
-and compiler provably surface-agnostic (heading 4). The artifact is a description, not a script: locators are ranked,
+methods plus a handful of explicitly-approved extensions added only when a real need arose — what keeps the engine
+and compiler surface-agnostic by construction (heading 4). The artifact is a description, not a script: locators are ranked,
 human-readable fallback chains, never raw selectors; `resolve()` requires exactly one match. Classification (what
 happened) is kept separate from escalation (does a human need to look) — a per-outcome escalation dictionary was
 deleted once the real two triggers were identified. The irreversible step (`is_submission`) is a schema fact, not an
@@ -113,11 +113,10 @@ Amount field and both account dropdowns on the transfer form have no accessible 
 only stable key available for them — three locators without a real fallback chain, on the mandatory path; a renamed
 or reordered form fails there rather than silently misfiring. A **condition** is one of ten kinds — page, element,
 text, form-state, shape — each validated to carry the target/value it needs. `error_mapping` lets the artifact
-declare which visible condition means which business outcome (e.g.
-`invalid_account`), so that mapping is compiler-produced data, not engine logic — the honest exception:
-`invalid_account` arrives via compiler-emitted rules, but `login_rejected` is currently an engine-side condition (login
-precedes the artifact's own steps); the reviewed merge path that would carry probe-derived mappings into the artifact
-is designed, not built.
+declare which visible condition means which business outcome (e.g. `invalid_account`), so that mapping is
+compiler-produced data, not engine logic. The one honest exception: `login_rejected` is currently an engine-side
+condition, not compiler-emitted like `invalid_account` (login precedes the artifact's own steps); the reviewed merge
+path that would carry probe-derived mappings into the artifact is designed, not built.
 
 **Why shaped this way:** every step states what must be true before and after it, so failure is detected at the step
 where it happens, with a plain-language `expected`/`observed` pair, not an unexplained timeout downstream. Money is
@@ -251,7 +250,7 @@ checks the real ledger and decides whether to re-run.
 **Discovery shares trigger 2, because it shares the risk.** Discovery has to dispatch the real money-moving action
 to learn what success looks like — there is no artifact yet, so no `is_submission` flag exists to lean on, but the
 same shape of risk exists: a real click, followed by a run that never confirms it. The engine tracks this itself,
-live — the same first-button-after-the-amount signal the compiler later turns into `is_submission` — and treats it
+live, using the first-button-after-the-amount signal that the compiler later formalizes as `is_submission` — and treats it
 identically: no re-click, no assuming it's safe to re-run. If the run ends anything but `SUCCESS` after that
 dispatch, it opens the same ticket machinery, with `side_effects: "unverified"` on the result. A raised error on
 that one click counts the same as a missing confirmation would — only "element not found" proves nothing was

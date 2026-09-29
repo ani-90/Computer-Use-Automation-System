@@ -14,7 +14,7 @@ See each subfolder's own `README.md` for why that run was picked.
 - `MAX_STEPS_EXCEEDED/` - the step cap is actually enforced, not a constant sitting unused.
 - `TIMEOUT/` - the wall-clock budget is actually enforced.
 
-The last three (`DEAD_END`, `MAX_STEPS_EXCEEDED`, `TIMEOUT`) were produced by earlier versions of the code
-and are kept as evidence that each guard rail works. `DEAD_END_dispatch_unverified` was produced against the
+`DEAD_END`, `MAX_STEPS_EXCEEDED`, and `TIMEOUT` were produced by earlier versions of the code and are kept as
+evidence that each guard rail works. `DEAD_END_dispatch_unverified` was produced against the
 final code, with a goal deliberately engineered to reproduce that exact scenario reliably (see its own
 README).
