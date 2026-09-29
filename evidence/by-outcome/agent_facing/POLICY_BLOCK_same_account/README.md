@@ -1,4 +1,4 @@
-# Replay outcome: HTTP_POLICY_BLOCK_same_account
+# Agent-facing outcome: POLICY_BLOCK_same_account
 
 Source run: `ea7f3570-0e74-4b35-9e5e-496aa5533736` (this folder is a full copy of that run's evidence; the raw run folder itself is not committed).
 

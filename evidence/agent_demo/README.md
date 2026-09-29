@@ -33,18 +33,19 @@ a `POLICY_BLOCK` here, never a ticket. See `REPORT.md` (heading 1) for the produ
 
 ## The eight outcomes
 
-Eight transcripts, one per scenario, each paired with the replay evidence it triggered under `../by-outcome/replay/HTTP_*/`.
+Eight transcripts, one per scenario, each paired with the replay evidence it triggered under
+[`../by-outcome/agent_facing/`](../by-outcome/agent_facing/).
 
 | Transcript | Instruction (paraphrased) | What it demonstrates | Outcome | Replay evidence |
 |---|---|---|---|---|
-| `transcript-1790422625.json` | transfer a normal amount | the happy path works end-to-end over HTTP, LLM-driven | `SUCCESS` | `HTTP_SUCCESS` |
-| `transcript-1790422741.json` | transfer a decimal amount (`1.75`) | the model reproduces a non-integer amount correctly; money typing survives an LLM as the caller, not just the CLI | `SUCCESS` | `HTTP_SUCCESS_decimal_amount` |
-| `transcript-1790422807.json` | transfer an amount with more than 2 decimal places | rejected before any browser opens, on the same validation path as the CLI | `POLICY_BLOCK` | `HTTP_POLICY_BLOCK_too_many_decimals` |
-| `transcript-1790422845.json` | transfer between the same account twice | `distinct_inputs` enforced the same way over HTTP | `POLICY_BLOCK` | `HTTP_POLICY_BLOCK_same_account` |
-| `transcript-1790422912.json` | transfer from a nonexistent account | a known ParaBank error message maps to a named business outcome, not a generic crash | `BUSINESS_OUTCOME` / `invalid_account` | `HTTP_BUSINESS_OUTCOME_invalid_account` |
-| `transcript-1790423145.json` | transfer to a nonexistent account (the model names the recipient, not the sender, as invalid) | the same mapping catches the error on either side of the transfer | `BUSINESS_OUTCOME` / `invalid_account` | `HTTP_BUSINESS_OUTCOME_invalid_destination_account` |
-| `transcript-1790422982.json` | transfer an amount over the approval threshold | **the one deliberate behavioral difference from the CLI**: no human to hand the browser to over HTTP, so this blocks instead of escalating — no ticket is opened | `POLICY_BLOCK` | `HTTP_POLICY_BLOCK_over_threshold` |
-| `transcript-1790422288.json` | transfer a normal amount, with the Transfer request held for 90s by the operator-only `CUA_FAULT` switch | the irreversible-action rule live over HTTP: Transfer is dispatched, confirmation never arrives in time, the engine never re-clicks, a ticket opens; the caller gets `ticket_id`/`run_id` and `side_effects: "unverified"` but never the real `procedure` (that's terminal-only, and there is no terminal here to print to) | `HARD_FAILURE` / `dispatch_unverified` | `HTTP_HARD_FAILURE_dispatch_unverified` |
+| `transcript-1790422625.json` | transfer a normal amount | the happy path works end-to-end over HTTP, LLM-driven | `SUCCESS` | `SUCCESS` |
+| `transcript-1790422741.json` | transfer a decimal amount (`1.75`) | the model reproduces a non-integer amount correctly; money typing survives an LLM as the caller, not just the CLI | `SUCCESS` | `SUCCESS_decimal_amount` |
+| `transcript-1790422807.json` | transfer an amount with more than 2 decimal places | rejected before any browser opens, on the same validation path as the CLI | `POLICY_BLOCK` | `POLICY_BLOCK_too_many_decimals` |
+| `transcript-1790422845.json` | transfer between the same account twice | `distinct_inputs` enforced the same way over HTTP | `POLICY_BLOCK` | `POLICY_BLOCK_same_account` |
+| `transcript-1790422912.json` | transfer from a nonexistent account | a known ParaBank error message maps to a named business outcome, not a generic crash | `BUSINESS_OUTCOME` / `invalid_account` | `BUSINESS_OUTCOME_invalid_account` |
+| `transcript-1790423145.json` | transfer to a nonexistent account (the model names the recipient, not the sender, as invalid) | the same mapping catches the error on either side of the transfer | `BUSINESS_OUTCOME` / `invalid_account` | `BUSINESS_OUTCOME_invalid_destination_account` |
+| `transcript-1790422982.json` | transfer an amount over the approval threshold | **the one deliberate behavioral difference from the CLI**: no human to hand the browser to over HTTP, so this blocks instead of escalating — no ticket is opened | `POLICY_BLOCK` | `POLICY_BLOCK_over_threshold` |
+| `transcript-1790422288.json` | transfer a normal amount, with the Transfer request held for 90s by the operator-only `CUA_FAULT` switch | the irreversible-action rule live over HTTP: Transfer is dispatched, confirmation never arrives in time, the engine never re-clicks, a ticket opens; the caller gets `ticket_id`/`run_id` and `side_effects: "unverified"` but never the real `procedure` (that's terminal-only, and there is no terminal here to print to) | `HARD_FAILURE` / `dispatch_unverified` | `HARD_FAILURE_dispatch_unverified` |
 
 ## Notes
 

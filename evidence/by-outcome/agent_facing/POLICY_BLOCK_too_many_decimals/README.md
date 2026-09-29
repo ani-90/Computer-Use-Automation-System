@@ -1,4 +1,4 @@
-# Replay outcome: HTTP_POLICY_BLOCK_too_many_decimals
+# Agent-facing outcome: POLICY_BLOCK_too_many_decimals
 
 Source run: `12491b6f-058f-48d1-94fc-dbaf4bd421b5` (this folder is a full copy of that run's evidence; the raw run folder itself is not committed).
 

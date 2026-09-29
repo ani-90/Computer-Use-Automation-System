@@ -1,4 +1,4 @@
-# Replay outcome: HTTP_POLICY_BLOCK_over_threshold
+# Agent-facing outcome: POLICY_BLOCK_over_threshold
 
 Source run: `a5b7da2a-d053-4267-af36-bf36c614cadd` (this folder is a full copy of that run's evidence; the raw run folder itself is not committed).
 

@@ -1,4 +1,4 @@
-# Replay outcome: HTTP_BUSINESS_OUTCOME_invalid_destination_account
+# Agent-facing outcome: BUSINESS_OUTCOME_invalid_destination_account
 
 Source run: `764f8607-483d-419c-bbd2-8963fd858b79` (this folder is a full copy of that run's evidence; the raw run folder itself is not committed).
 

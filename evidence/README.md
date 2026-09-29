@@ -22,16 +22,18 @@ Everything else goes further and is labeled as such.
 
 ## Bonus: every other outcome, and the agent path
 
-- [`by-outcome/replay/`](by-outcome/replay/) - 24 replay runs, one folder per scenario, named by outcome; its `README.md`
-  is the index. It covers all five outcomes (`SUCCESS`, `BUSINESS_OUTCOME`, `RECOVERABLE` handled by auto-recovery,
-  `HARD_FAILURE`, `POLICY_BLOCK`), human escalation (approve, reject, timeout, and a click that disagrees with the typed
-  word), decimal amounts, and the same scenarios over HTTP through the agent.
+- [`by-outcome/replay/`](by-outcome/replay/) - 16 replay runs via the CLI, one folder per scenario, named by outcome;
+  its `README.md` is the index. It covers all five outcomes (`SUCCESS`, `BUSINESS_OUTCOME`, `RECOVERABLE` handled by
+  auto-recovery, `HARD_FAILURE`, `POLICY_BLOCK`), human escalation (approve, reject, timeout, and a click that
+  disagrees with the typed word), and decimal amounts.
+- [`by-outcome/agent_facing/`](by-outcome/agent_facing/) - 8 replay runs via the agent-facing HTTP interface (the
+  stretch goal), same engine and taxonomy, kept separate from the CLI runs above so the two aren't mixed together.
 - [`by-outcome/discovery/`](by-outcome/discovery/) - one example per discovery `stop_reason`, plus
   [`DEAD_END_dispatch_unverified/`](by-outcome/discovery/DEAD_END_dispatch_unverified/): discovery moves real money
   too, and this proves that's handled the same way replay's own `dispatch_unverified` trigger is — a real dispatch,
   confirmed, then the run still ends non-`SUCCESS`, and it opens a ticket rather than pretending it's safe to
   just re-run.
-- [`agent_demo/`](agent_demo/) - eight redacted transcripts of the agent-facing HTTP interface.
+- [`agent_demo/`](agent_demo/) - eight redacted transcripts of the calls behind `by-outcome/agent_facing/`.
 
 ## How this evidence stays trustworthy
 

@@ -1,4 +1,4 @@
-# Replay outcome: HTTP_HARD_FAILURE_dispatch_unverified
+# Agent-facing outcome: HARD_FAILURE_dispatch_unverified
 
 Source run: `42e3f71c-5aa6-480c-a42d-4b6ddbf70f76` (this folder is a full copy of that run's evidence; the raw run folder itself is not committed).
 
