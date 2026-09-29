@@ -172,9 +172,9 @@ synchronously. See `REPORT.md` for how a production version would differ.
 ## 8. Evidence
 
 [`evidence/README.md`](evidence/README.md) is the map. Start with `evidence/by-outcome/replay/SUCCESS/` and
-`evidence/by-outcome/discovery/SUCCESS/`. There are 16 replay runs via the CLI (the scenarios above, plus additional
-fault-injection and escalation variants), 8 more via the agent-facing HTTP interface in
-`evidence/by-outcome/agent_facing/`, and 8 agent transcripts, all with a README naming the run it came from.
+`evidence/by-outcome/discovery/SUCCESS/`. There are 16 replay runs via the CLI (the scenarios above, plus further
+escalation and validation variants not shown as separate commands here), 8 more via the agent-facing HTTP interface
+in `evidence/by-outcome/agent_facing/`, and 8 agent transcripts, all with a README naming the run it came from.
 `python scripts/audit_evidence.py --tracked` re-checks the whole tree.
 
 ## Known limits
